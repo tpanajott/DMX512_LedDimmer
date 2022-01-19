@@ -1,6 +1,7 @@
-Controller/.pio
-Controller/.vscode/.browse.c_cpp.db*
-Controller/.vscode/c_cpp_properties.json
-Controller/.vscode/launch.json
-Controller/.vscode/ipch
+Software/Controller/.pio
+Software/Slave/.pio
+Software/Controller/.vscode
+Software/Slave/.vscode
 
+Software/Controller/data/config.json
+Software/Controller/data/config.json.bak

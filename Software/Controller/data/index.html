@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<HEAD>
+    <TITLE>DMX Light Controller</TITLE>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="/static/bulma.min.css">
+    <link rel="stylesheet" href="/static/background.css">
+    <script src="/static/jquery.min.js"></script>
+    <script src="/static/index_data.js"></script>
+    
+    <style>
+        .lds-dual-ring {
+            display: inline-block;
+            width: 80px;
+            height: 80px;
+        }
+
+        .lds-dual-ring:after {
+            content: " ";
+            display: block;
+            width: 64px;
+            height: 64px;
+            margin: 8px;
+            border-radius: 50%;
+            border: 6px solid #ccc;
+            border-color: #ccc transparent #ccc transparent;
+            animation: lds-dual-ring 1.2s linear infinite;
+        }
+
+        @keyframes lds-dual-ring {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</HEAD>
+<body>
+    <!-- Modal to show that connected to the device has been lost -->
+    <div class="modal" id="not_connected_modal">
+        <div class="modal-background"></div>
+        <div class="modal-card">
+            <header class="modal-card-head">
+                <p class="modal-card-title">Connection lost</p>
+            </header>
+            <section class="modal-card-body">
+                <center>
+                    <div class="lds-dual-ring"></div>
+                    <br>
+                    Please wait, you will be automatically reconnected (if the address is still the same).
+                </center>
+            </section>
+            <footer class="modal-card-foot"></footer>
+        </div>
+    </div>
+    <!-- Select WiFi SSID modal -->
+    <div class="modal" id="select_wifi_modal">
+        <div class="modal-background" id="select_wifi_modal_close_background"></div>
+        <div class="modal-card">
+          <header class="modal-card-head">
+            <p class="modal-card-title">Select network</p>
+            <button class="delete" aria-label="close" id="select_wifi_modal_close_button"></button>
+          </header>
+          <section class="modal-card-body">
+            <div id="wifi_wait_div">
+                <center>
+                    <div class="lds-dual-ring"></div>
+                    <br>
+                    Please wait, while fethcing available Wifi networks.
+                </center>
+            </div>
+            <div id="wifi_failed_to_get_networks">
+                <div class="notification is-danger">
+                    Failed to get a list of available networks!
+                </div>
+            </div>
+            <div id="wifi_no_networks_found">
+                <div class="notification is-danger">
+                    No networks found.
+                </div>
+            </div>
+            <div id="available_wifi_networks">
+                <table class="table is-fullwidth">
+                    <thead>
+                      <tr>
+                        <th>SSID</th>
+                        <th>RSSI</th>
+                        <th>Channel</th>
+                        <th>Security</th>
+                      </tr>
+                    </thead>
+                    <tbody id="available_wifi_networks_tbody">
+                      <tr>
+                        <th>1</th>
+                        <td>2</td>
+                        <td>3</td>
+                      </tr>
+                    </tbody>
+                  </table>
+            </div>
+          </section>
+          <footer class="modal-card-foot">
+            <button class="button" id="select_wifi_modal_cancel_button">Cancel</button>
+          </footer>
+        </div>
+      </div>
+
+    <!-- Modal to confirm factory reset -->
+    <div class="modal" id="factory_reset_modal">
+        <div class="modal-background" id="factory_reset_modal_background"></div>
+        <div class="modal-card">
+            <header class="modal-card-head">
+                <p class="modal-card-title">Factory Reset</p>
+            </header>
+            <section class="modal-card-body">
+                <p>Are you sure you want to factory reset the device?</p>
+            </section>
+            <footer class="modal-card-foot">
+                <button class="button is-danger" onclick="doFactoryReset();">Factory Reset</button>
+                <button class="button" onclick="cancelFactoryReset();">Cancel</button>
+            </footer>
+        </div>
+    </div>
+
+    <section class="section">
+        <div class="container">
+            <h1 class="title">
+                DMX Light Controller
+            </h1>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="notification is-danger hidden" id="mqtt_connection_error">
+            MQTT is not connected! Local control with buttons will still work.
+        </div>
+        <div class="notification is-danger hidden" id="home_assistant_connection_error">
+            Home Assistant is not available on MQTT! Local control with buttons will still work.
+        </div>
+
+        <form method="POST" action="/save_config" id="config">
+            <div class="box">
+                <div class="field">
+                    <h5 class="title is-5">General</h5>
+                    <label class="label">Device name</label>
+                    <div class="control">
+                        <input class="input" type="text" name="wifi_hostname" id="wifi_hostname" placeholder="Device name" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">Home Assistant online wait period in milliseconds</label>
+                    <div class="control">
+                        <input class="input" type="number" name="home_assistant_online_wait_period_ms" id="home_assistant_online_wait_period_ms" placeholder="Home Assistant wait period" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="box">
+                <div class="field">
+                    <h5 class="title is-5">WiFi</h5>
+                </div>
+                <div class="field">
+                    <label class="label">Connect to WiFi</label>
+                </div>
+                <div class="field has-addons">
+                    <div class="control is-expanded">
+                        <input class="input" type="text" name="wifi_ssid" id="wifi_ssid" placeholder="SSID" required>
+                    </div>
+                    <div class="control">
+                        <a class="button is-info" onclick="showWifiSelectModal();">List</a>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">WiFi Password</label>
+                    <div class="control">
+                        <input class="input" type="password" name="wifi_psk" id="wifi_psk" placeholder="Password" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">WiFi retry timeout in milliseconds</label>
+                    <div class="control">
+                        <input class="input" type="number" name="wifi_retry_timeout_ms" id="wifi_retry_timeout_ms" placeholder="WiFi retry timeout" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="box">
+                <div class="columns">
+                    <div class="column">
+                        <h5 class="title is-5" id="button1_name_title"></h5>
+                        <div class="field is-grouped is-grouped-multiline">
+                            <div class="control">
+                                <div class="tags has-addons">
+                                <span class="tag is-dark">Current Output</span>
+                                <span class="tag is-info" id="button1_output"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <input type="range" min="0" max="255" value="0" id="button1_output_slider" onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                        </div>
+                        <div class="field">
+                            <label class="checkbox">
+                                <input type="checkbox" name="button1_enabled" id="button1_enabled">
+                                Enabled
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label class="label">Name</label>
+                            <div class="control">
+                                <input class="input" type="text" name="button1_name" id="button1_name" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Channel</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button1_channel" id="button1_channel" min="1" max="15" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button1_max" id="button1_max" min=1 max=255 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Minimum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button1_min" id="button1_min" min=1 max=255 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Dimming speed</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button1_dimmingSpeed" id="button1_dimmingSpeed" min=5 max=25 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Auto-Dimming speed</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button1_autoDimmingSpeed" id="button1_autoDimmingSpeed" min=0 max=15 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Hold Period</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button1_holdPeriod" id="button1_holdPeriod" min=0 max=1500 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Min button hold period (ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button1_minPressMillis" id="button1_minPressMillis" min=0 max=150 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Max button hold period (ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button1_maxPressMillis" id="button1_maxPressMillis" min=0 max=1500 required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <h5 class="title is-5" id="button2_name_title"></h5>
+                        <div class="field is-grouped is-grouped-multiline">
+                            <div class="control">
+                                <div class="tags has-addons">
+                                <span class="tag is-dark">Current Output</span>
+                                <span class="tag is-info" id="button2_output"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <input type="range" min="0" max="255" value="0" id="button2_output_slider" onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                        </div>
+                        <div class="field">
+                            <label class="checkbox">
+                                <input type="checkbox" name="button2_enabled" id="button2_enabled">
+                                Enabled
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label class="label">Name</label>
+                            <div class="control">
+                                <input class="input" type="text" name="button2_name" id="button2_name" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Channel</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button2_channel" id="button2_channel" min="1" max="15" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button2_max" id="button2_max" min=1 max=255 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Minimum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button2_min" id="button2_min" min=1 max=255 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Dimming speed</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button2_dimmingSpeed" id="button2_dimmingSpeed" min=5 max=25 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Auto-Dimming speed</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button2_autoDimmingSpeed" id="button2_autoDimmingSpeed" min=0 max=15 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Hold Period</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button2_holdPeriod" id="button2_holdPeriod" min=0 max=1500 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Min button hold period (ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button2_minPressMillis" id="button2_minPressMillis" min=0 max=150 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Max button hold period (ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button2_maxPressMillis" id="button2_maxPressMillis" min=0 max=1500 required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <h5 class="title is-5" id="button3_name_title"></h5>
+                        <div class="field is-grouped is-grouped-multiline">
+                            <div class="control">
+                                <div class="tags has-addons">
+                                <span class="tag is-dark">Current Output</span>
+                                <span class="tag is-info" id="button3_output"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <input type="range" min="0" max="255" value="0" id="button3_output_slider" onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                        </div>
+                        <div class="field">
+                            <label class="checkbox">
+                                <input type="checkbox" name="button3_enabled" id="button3_enabled">
+                                Enabled
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label class="label">Name</label>
+                            <div class="control">
+                                <input class="input" type="text" name="button3_name" id="button3_name" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Channel</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button3_channel" id="button3_channel" min="1" max="15" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button3_max" id="button3_max" min=1 max=255 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Minimum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button3_min" id="button3_min" min=1 max=255 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Dimming speed</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button3_dimmingSpeed" id="button3_dimmingSpeed" min=5 max=25 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Auto-Dimming speed</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button3_autoDimmingSpeed" id="button3_autoDimmingSpeed" min=0 max=15 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Hold Period</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button3_holdPeriod" id="button3_holdPeriod" min=0 max=1500 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Min button hold period (ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button3_minPressMillis" id="button3_minPressMillis" min=0 max=150 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Max button hold period (ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button3_maxPressMillis" id="button3_maxPressMillis" min=0 max=1500 required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <h5 class="title is-5" id="button4_name_title"></h5>
+                        <div class="field is-grouped is-grouped-multiline">
+                            <div class="control">
+                                <div class="tags has-addons">
+                                <span class="tag is-dark">Current Output</span>
+                                <span class="tag is-info" id="button4_output"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <input type="range" min="0" max="255" value="0" id="button4_output_slider" onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                        </div>
+                        <div class="field">
+                            <label class="checkbox">
+                                <input type="checkbox" name="button4_enabled" id="button4_enabled">
+                                Enabled
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label class="label">Name</label>
+                            <div class="control">
+                                <input class="input" type="text" name="button4_name" id="button4_name" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Channel</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button4_channel" id="button4_channel" min="1" max="15" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button4_max" id="button4_max" min=1 max=255 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Minimum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button4_min" id="button4_min" min=1 max=255 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Dimming speed</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button4_dimmingSpeed" id="button4_dimmingSpeed" min=5 max=25 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Auto-Dimming speed</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button4_autoDimmingSpeed" id="button4_autoDimmingSpeed" min=0 max=15 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Hold Period</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button4_holdPeriod" id="button4_holdPeriod" min=0 max=1500 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Min button hold period (ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button4_minPressMillis" id="button4_minPressMillis" min=0 max=150 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Max button hold period (ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="button4_maxPressMillis" id="button4_maxPressMillis" min=0 max=1500 required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="box">
+                <div class="field">
+                    <h5 class="title is-5">MQTT</h5>
+                    <div class="field is-grouped is-grouped-multiline">
+                        <div class="control">
+                            <div class="tags has-addons">
+                            <span class="tag is-dark">MQTT Status</span>
+                            <span class="tag is-info" id="mqtt_status"></span>
+                            </div>
+                        </div>
+                        <div class="control">
+                            <div class="tags has-addons">
+                            <span class="tag is-dark">Home Assistant Status</span>
+                            <span class="tag is-info" id="home_assistant_status"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">MQTT Server</label>
+                    <div class="control">
+                        <input class="input" type="text" name="mqtt_server" id="mqtt_server" placeholder="MQTT Server" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">MQTT Port</label>
+                    <div class="control">
+                        <input class="input" type="number" name="mqtt_port" id="mqtt_port" placeholder="MQTT Port" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">MQTT Base Topic</label>
+                    <div class="control">
+                        <input class="input" type="text" name="mqtt_base_topic" id="mqtt_base_topic" placeholder="MQTT Topic" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="checkbox">
+                        <input type="checkbox" id="mqtt_auth" name="mqtt_auth">
+                        MQTT Authentication
+                    </label>
+                </div>
+                <div class="field" id="mqtt_username_field">
+                    <label class="label">MQTT Username</label>
+                    <div class="control">
+                        <input class="input" type="text" name="mqtt_username" id="mqtt_username" placeholder="MQTT Username">
+                    </div>
+                </div>
+                <div class="field" id="mqtt_psk_field">
+                    <label class="label">MQTT Password</label>
+                    <div class="control">
+                        <input class="input" type="password" name="mqtt_psk" id="mqtt_psk" placeholder="MQTT Password">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add 1rem of padding to bottom to prevent a white bar appering on the bottom of the page -->
+            <div class="level" style="padding-bottom: 1rem;">
+                <div class="level-left">
+                    <div class="buttons is-right">
+                        <a class="button is-danger
+                        " onclick="showFactoryResetModal();">Factory Reset</a>
+                    </div>
+                </div>
+                <div class="level-right">
+                    <div class="buttons">
+                        <a class="button is-link" href="/update">Firmware Update</a>
+                        <button class="button is-success" type="submit" id="save_button">Save</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</body>
+</HTML>
