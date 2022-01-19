@@ -5,3 +5,6 @@ Software/Slave/.vscode
 
 Software/Controller/data/config.json
 Software/Controller/data/config.json.bak
+
+*.kicad_pcb-bak
+*.sch-bak

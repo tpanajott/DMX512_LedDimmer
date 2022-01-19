@@ -1,0 +1,22 @@
+EESchema-LIBRARY Version 2.4
+#encoding utf-8
+#
+# AP8861-CustomComponents
+#
+DEF AP8861-CustomComponents U 0 40 Y Y 1 F N
+F0 "U" 0 50 50 H V C CNN
+F1 "AP8861-CustomComponents" 0 150 50 H V C CNN
+F2 "Package_TO_SOT_SMD:SOT-89-5_Handsoldering" 0 0 50 H I C CNN
+F3 "" 0 0 50 H I C CNN
+F4 "C507867" 0 0 50 H I C CNN "LCSC"
+DRAW
+S -150 0 150 -450 0 1 0 f
+X Lx 1 200 -350 50 L 25 25 0 0 O
+X GND 2 0 -500 50 U 25 25 0 0 W
+X Vset 3 -200 -350 50 R 25 25 0 0 B
+X Isense 4 200 -100 50 L 25 25 0 0 I
+X VIN 5 -200 -100 50 R 25 25 0 0 W
+ENDDRAW
+ENDDEF
+#
+#End Library
