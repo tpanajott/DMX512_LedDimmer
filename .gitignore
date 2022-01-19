@@ -6,5 +6,8 @@ Software/Slave/.vscode
 Software/Controller/data/config.json
 Software/Controller/data/config.json.bak
 
+PCB/DMX_CC_LED_Driver/DMX_CC_LED_Driver-backups
+PCB/DMX_ControllerBoard/DMX_ControllerBoard-backups
+
 *.kicad_pcb-bak
 *.sch-bak
