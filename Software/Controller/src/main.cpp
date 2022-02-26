@@ -102,11 +102,12 @@ String config_file_data = ""; // Used to store config file data while updating L
 
 void setupWiFi() {
   // If a configuration exists, continue to connect to configured WiFi
-  if(strcmp(config.wifi_ssid, "") != 0) {
+  if(!String(config.wifi_ssid).isEmpty()) {
     Serial.printf("[WIFI] Configuration exists. Trying to connect to WiFi %s\n", config.wifi_ssid);
     WiFi.hostname(config.wifi_hostname);
     WiFi.begin(config.wifi_ssid, config.wifi_psk);
     WiFi.setAutoConnect(true);
+    WiFi.softAPdisconnect(true);
   } else {
     Serial.println("[WIFI] No configuration exists! Starting configuration AP.");
     IPAddress local_ip(192,168,1,1);
@@ -145,6 +146,7 @@ void taskWiFiManager() {
         Serial.printf("[WIFI] Gateway    : %s\n", WiFi.gatewayIP().toString().c_str());
         Serial.printf("[WIFI] DNS        : %s\n", WiFi.dnsIP().toString().c_str());
         Serial.printf("[WIFI] RSSI       : %i\n", WiFi.RSSI());
+        Serial.printf("[WIFI] SSID       : %i\n", WiFi.SSID());
       }
       lastWiFiCheckMillis = millis();
       lastWiFiCheckStatus = (WiFi.status() == WL_CONNECTED);
@@ -888,6 +890,7 @@ void setup() {
     checkIfFactoryReset(); // Check if button for factory reset is being held
 
     loadConfig();
+    delay(100);  // Wait for 100ms for config to settle in
     setupWiFi();
     setupMQTT();
     setupWebServer();
