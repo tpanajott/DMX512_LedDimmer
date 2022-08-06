@@ -17,6 +17,7 @@ void DimmerButton::Begin(unsigned int min, unsigned int max, bool pullUp, unsign
     _lastOnLevel = _level;
     _dimmingSpeed = 15;
     _dimmingTargetSpeed = 2;
+    _lastDimEvent = 0;
     _holdPeriod = 800;
     _direction = false;
     _holdPositionReaced = false;
@@ -204,13 +205,16 @@ void DimmerButton::update() {
             }
         }
     } else if (_buttonEvents[0].state && _outputState) {
-        // Button is being held down and has been held down for longer than a simple press
-        // and output is enabled
+        // Button is being held down and has been held down for longer than a simple press and output is enabled
         // Cancel any auto dimming if currently running
         _dimmingTargetReached = true;
         if(millis() - _buttonEvents[0].millis > _buttonPressThreshold) {
             if(millis() - _lastDimEvent > _dimmingSpeed) {
                 // If direction is true/positive, increase brightness
+                #ifdef DEBUG
+                Serial.printf("[BUTTON] Direction: %s\n", _direction ? "UP" : "DOWN");
+                Serial.printf("[BUTTON] Hold reached: %s\n", _holdPositionReaced ? "TRUE" : "FALSE");
+                #endif
                 if(_direction && !_holdPositionReaced) {
                     if(_level < _max) {
                         _level += 1;
@@ -218,14 +222,13 @@ void DimmerButton::update() {
                         #ifdef DEBUG
                         Serial.printf("[BUTTON] Dimlevel: %i\n", _level);
                         #endif
-                        
+
                         // Have we reached the max position, if so, flag to hold position before changing direction.
-                        if(_level == _max && !_holdPositionReaced) {
+                        if(_level >= _max && !_holdPositionReaced) {
                             _lastHoldPositionReached = millis();
                             _holdPositionReaced = true;
                         }
                     }
-                    // Hold at max position for given time
                 } else if (!_direction && !_holdPositionReaced) {
                     // If direction is false/decrease, increase brightness
                     if(_level > _min) {
@@ -234,16 +237,19 @@ void DimmerButton::update() {
                         #ifdef DEBUG
                         Serial.printf("[BUTTON] Dimlevel: %i\n", _level);
                         #endif
+                    }
 
-                        // Have we reached the min position, if so, flag to hold position before changing direction.
-                        if(_level == _min && !_holdPositionReaced) {
-                            _lastHoldPositionReached = millis();
-                            _holdPositionReaced = true;
-                        }
+                    // Have we reached the min position, if so, flag to hold position before changing direction.
+                    if(_level <= _min && !_holdPositionReaced) {
+                        _lastHoldPositionReached = millis();
+                        _holdPositionReaced = true;
                     }
                 } else if (_holdPositionReaced && millis() - _lastHoldPositionReached >= _holdPeriod) {
                     // Hold position has been reached and the hold time has expiered, reset hold position flag
                     // and invert direction
+                    #ifdef DEBUG
+                    Serial.printf("[BUTTON] Hold position reached. Inverting and resetting holdPositionReached.");
+                    #endif
                     _holdPositionReaced = false;
                     _direction = !_direction;
                 }
@@ -273,6 +279,12 @@ void DimmerButton::update() {
                 if(_level <= 0) {
                     _outputState = false;
                     _sendStatusUpdate = true;
+                } else if (_level == _max) {
+                    // If the dimming target was the maximum brightness, make sure the next button press to dim DOWN
+                    _direction = false;
+                } else if (_level == _min) {
+                    // If the dimming target was the minimum brightness, make sure the next button press to dim UP
+                    _direction = true;
                 }
             }
         }
