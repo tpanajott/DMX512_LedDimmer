@@ -135,5 +135,5 @@ void HAMqtt::sendOnlineStatusUpdate(PubSubClient (*client)) {
     availability_topic.concat("/availability");
 
     // Send "online" status update
-    client->publish(availability_topic.c_str(), "online");
+    client->publish(availability_topic.c_str(), "online", true);
 }

@@ -1,5 +1,12 @@
 #include <Arduino.h>
 #include <DMXSerial.h>
+
+// Set DMX receive timeout to 10 seconds by default.
+// This value can be trimmed down to start dimming down the lights faster after connection error
+// or trimmed up to allow for mor errors on the line before a visual effect is seen
+// The receive error led on the PCB will still light up after 500ms
+#define DMX_TIMEOUT_MS 10000
+
 #define dimmerPin 9
 #define RS485_ERROR_PIN 2
 #define STATUS_PIN 5
@@ -95,7 +102,8 @@ void readCurrentChannelSwitches() {
 
 
 void setup() {
-  DMXSerial.init(DMXReceiver);
+  DMXSerial.init(DMXReceiver); // Init DMX as receiver
+  // Set default values for all channels
   for(int i = 0; i < 15; i++) {
     DMXSerial.write(i + 1, 0);
   }
@@ -103,19 +111,21 @@ void setup() {
   pinMode(STATUS_PIN, OUTPUT);
   digitalWrite(STATUS_PIN, HIGH);
 
+  // Setup input with pullup and read channel from DIP-switch
   pinMode(CHANNEL_PIN_B1, INPUT_PULLUP);
   pinMode(CHANNEL_PIN_B2, INPUT_PULLUP);
   pinMode(CHANNEL_PIN_B3, INPUT_PULLUP);
   pinMode(CHANNEL_PIN_B4, INPUT_PULLUP);
   readCurrentChannelSwitches();
 
+  // Start PWM
   PWM16B(0);
   PWM16Begin();
   PWM16EnableB();
 }
 
 void loop() {
-  // Get the currently set channels from the DIP-switches.
+  // Get the currently set channels from the DIP-switches every second.
   if(millis() - lastCurrentChannelRead > 1000) {
     readCurrentChannelSwitches();
   }
@@ -124,7 +134,9 @@ void loop() {
     // Calculate how long since the last DMX data was received.
     unsigned long lastPacket = DMXSerial.noDataSince();
 
-    if (lastPacket < 5000) {
+    // If the last packet we received was less than the timeout value ago, set the value received
+    // otherwise, start dimming down current dimming level every 100ms
+    if (lastPacket < DMX_TIMEOUT_MS) {
       // Convert sent value with a curve to the high value corresponding to the bit-mode of the PWM
       //dimLevel = round(pow((DMXSerial.read(currentChannel) * 0.25), 2));  // Convert to 12-bit
       dimLevel = round(pow((DMXSerial.read(currentChannel) * 0.125), 2));  // Convert to 10-bit
@@ -142,7 +154,7 @@ void loop() {
       digitalWrite(RS485_ERROR_PIN, LOW);
     }
 
-    // Blink the status LED to show that it is running
+    // Blink the status LED to show that it is running (this can be disabled by not bridging the jumper)
     digitalWrite(STATUS_PIN, (millis() / 1000) % 2 == 0 ? HIGH : LOW);
   } else {
     // Dim down the lights as not channel is configured.

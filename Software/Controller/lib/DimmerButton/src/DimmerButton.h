@@ -4,8 +4,8 @@
 #include "Button.h"
 
 struct ButtonEvent {
-    bool state;
-    unsigned long millis;
+    bool state = false; // Default value represent released button
+    unsigned long millis = 0;
 };
 
 class DimmerButton {

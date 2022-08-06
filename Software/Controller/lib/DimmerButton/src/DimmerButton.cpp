@@ -2,6 +2,9 @@
 #include "Arduino.h"
 #include "Button.h"
 
+// Uncomment the following line to enable debug
+// #define DEBUG
+
 DimmerButton::DimmerButton(unsigned int pin) : _button(pin) {
     _pin = pin;
 }
@@ -171,12 +174,13 @@ void DimmerButton::update() {
         _buttonEvents[0].millis = millis();
         // Cancel any auto dimming if currently running
         _dimmingTargetReached = true;
-        // DEBUG OUTPUT:
-        // Serial.printf("[BUTTON] New event. Button is %s\n", _button.read() == Button::PRESSED ? "PRESSED" : "RELEASED");
-        // Serial.printf("[BUTTON] 0: %s\n", _buttonEvents[0].state ? "PRESSED" : "RELEASED");
-        // Serial.printf("[BUTTON] 1: %s\n", _buttonEvents[1].state? "PRESSED" : "RELEASED");
-        // Serial.printf("[BUTTON] 2: %s\n", _buttonEvents[2].state? "PRESSED" : "RELEASED");
-        // Serial.printf("[BUTTON] --------------\n");
+        #ifdef DEBUG
+        Serial.printf("[BUTTON] New event. Button is %s\n", _button.read() == Button::PRESSED ? "PRESSED" : "RELEASED");
+        Serial.printf("[BUTTON] 0: %s\n", _buttonEvents[0].state ? "PRESSED" : "RELEASED");
+        Serial.printf("[BUTTON] 1: %s\n", _buttonEvents[1].state? "PRESSED" : "RELEASED");
+        Serial.printf("[BUTTON] 2: %s\n", _buttonEvents[2].state? "PRESSED" : "RELEASED");
+        Serial.printf("[BUTTON] --------------\n");
+        #endif
         
         // If the current state of the button is released, check if the last state was pressed
         // and if the time difference between the events was less than the threshold for a short press
@@ -185,16 +189,18 @@ void DimmerButton::update() {
             if(_buttonEvents[0].millis - _buttonEvents[1].millis <= _buttonPressThreshold) {
                 // Delta time between events was within button press event threshold
                 setOutputState(!_outputState);
-                // _outputState = !_outputState;
-                // _hasChanged = true;
-                // Serial.printf("[BUTTON] State: %s\n", _outputState ? "ON" : "OFF");
-            } else if (_buttonEvents[0].millis - _buttonEvents[1].millis > _buttonPressThreshold) {
+                #ifdef DEBUG
+                Serial.printf("[BUTTON] State: %s\n", _outputState ? "ON" : "OFF");
+                #endif
+            } else if (_buttonEvents[0].millis - _buttonEvents[1].millis > _buttonPressThreshold && this->getOutputState()) {
                 // Delta time between events was to long for a press and therefore is a dimming event
                 // As this is the button release after a dimming event, invert direction and send the status update
                 _direction = !_direction;
                 _sendStatusUpdate = true;
-                Serial.println("Dimming done. Send update!");
-                // Serial.println("[BUTTON] Inverter direction.");
+                #ifdef DEBUG
+                Serial.println("[BUTTON] Dimming done. Send update!");
+                Serial.println("[BUTTON] Inverted direction.");
+                #endif
             }
         }
     } else if (_buttonEvents[0].state && _outputState) {
@@ -209,7 +215,9 @@ void DimmerButton::update() {
                     if(_level < _max) {
                         _level += 1;
                         _hasChanged = true;
-                        // Serial.printf("[BUTTON] Dimlevel: %i\n", _level);
+                        #ifdef DEBUG
+                        Serial.printf("[BUTTON] Dimlevel: %i\n", _level);
+                        #endif
                         
                         // Have we reached the max position, if so, flag to hold position before changing direction.
                         if(_level == _max && !_holdPositionReaced) {
@@ -223,7 +231,9 @@ void DimmerButton::update() {
                     if(_level > _min) {
                         _level -= 1;
                         _hasChanged = true;
-                        // Serial.printf("[BUTTON] Dimlevel: %i\n", _level);
+                        #ifdef DEBUG
+                        Serial.printf("[BUTTON] Dimlevel: %i\n", _level);
+                        #endif
 
                         // Have we reached the min position, if so, flag to hold position before changing direction.
                         if(_level == _min && !_holdPositionReaced) {

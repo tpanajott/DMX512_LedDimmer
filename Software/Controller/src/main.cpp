@@ -146,7 +146,7 @@ void taskWiFiManager() {
         Serial.printf("[WIFI] Gateway    : %s\n", WiFi.gatewayIP().toString().c_str());
         Serial.printf("[WIFI] DNS        : %s\n", WiFi.dnsIP().toString().c_str());
         Serial.printf("[WIFI] RSSI       : %i\n", WiFi.RSSI());
-        Serial.printf("[WIFI] SSID       : %i\n", WiFi.SSID());
+        Serial.printf("[WIFI] SSID       : %s\n", WiFi.SSID().c_str());
       }
       lastWiFiCheckMillis = millis();
       lastWiFiCheckStatus = (WiFi.status() == WL_CONNECTED);
@@ -422,16 +422,6 @@ void indexDataEventHandler(AsyncWebSocket * server, AsyncWebSocketClient * clien
   if(type == WS_EVT_CONNECT){
     sendBaseData(client);
     sendButtonData(client);
-    
-    // char json_data[1024];
-    // serializeJsonPretty(json, json_data);
-    // client->printf(json_data);
-
-    //client connected
-    Serial.printf("[INDEX_DATA_SOCKET] ws[%s][%u] connect\n", server->url(), client->id());
-  } else if(type == WS_EVT_DISCONNECT){
-    //client disconnected
-    Serial.printf("[INDEX_DATA_SOCKET] ws[%s][%u] disconnect: %u\n", server->url(), client->id());
   } else if(type == WS_EVT_ERROR){
     //error was received from the other end
     Serial.printf("[INDEX_DATA_SOCKET] ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t*)arg), (char*)data);
@@ -440,7 +430,7 @@ void indexDataEventHandler(AsyncWebSocket * server, AsyncWebSocketClient * clien
     AwsFrameInfo * info = (AwsFrameInfo*)arg;
     if(info->final && info->index == 0 && info->len == len){
       //the whole message is in a single frame and we got all of it's data
-      Serial.printf("ws[%s][%u] %s-message[%llu]\n", server->url(), client->id(), (info->opcode == WS_TEXT)?"text":"binary", info->len);
+      // Serial.printf("[INDEX_DATA_SOCKET] ws[%s][%u] %s-message[%llu]\n", server->url(), client->id(), (info->opcode == WS_TEXT)?"text":"binary", info->len);
       if(info->opcode == WS_TEXT){
         data[len] = 0;
         // String message = String((char*)data);
@@ -448,7 +438,7 @@ void indexDataEventHandler(AsyncWebSocket * server, AsyncWebSocketClient * clien
         StaticJsonDocument<256> doc;
         DeserializationError error = deserializeJson(doc, (char*)data);
         if(error) {
-          Serial.print(F("deserializeJson() failed: "));
+          Serial.print(F("[INDEX_DATA_SOCKET] deserializeJson() failed: "));
           Serial.println(error.f_str());
           return;
         }
@@ -752,7 +742,6 @@ void mqtt_callback(MQTTLight light) {
     if(light.brightness > 0) {
       dimmerButtons[buttonIndex].setOutputState(true);
       dimmerButtons[buttonIndex].setDimmingTarget(light.brightness);
-      // dimmerButtons[buttonIndex].setLevel(light.brightness);
     } else {
       dimmerButtons[buttonIndex].setOutputState(light.state);
     }
