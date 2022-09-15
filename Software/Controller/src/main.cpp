@@ -871,6 +871,26 @@ void setupDimmerButtons() {
   dimmerButtons[3].setButtonPressMaxMillis(config.button4_maxPressMillis);
 }
 
+// Go through the buttons that are enabled and check for the highest channel.
+int getHighestDMXChannelInUse() {
+  int ret = 1; // Set default to 1
+
+  if(config.button1_enabled && config.button1_channel > ret) {
+    ret = config.button1_channel;
+  }
+  if(config.button2_enabled && config.button2_channel > ret) {
+    ret = config.button2_channel;
+  }
+  if(config.button3_enabled && config.button3_channel > ret) {
+    ret = config.button3_channel;
+  }
+  if(config.button4_enabled && config.button4_channel > ret) {
+    ret = config.button4_channel;
+  }
+
+  return ret;
+}
+
 // Setup has to be on bottom to be able to reference stuff from above
 void setup() {
   Serial.begin(115200);
@@ -892,8 +912,9 @@ void setup() {
     }
   }
 
-  Serial.println("[DMX] Initializing DMX with 15 channels.");
-  dmx.init(15);
+  int number_of_channels = getHighestDMXChannelInUse();
+  Serial.printf("[DMX] Initializing DMX with %i channels.\n", number_of_channels);
+  dmx.init(number_of_channels);
 
   setupDimmerButtons();
 
