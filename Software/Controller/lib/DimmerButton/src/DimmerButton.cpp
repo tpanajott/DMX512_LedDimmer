@@ -30,9 +30,6 @@ void DimmerButton::Begin(unsigned int min, unsigned int max, bool pullUp, unsign
     _name = name;
     pinMode(_pin, pullUp ? INPUT_PULLUP : INPUT);
 
-    // String str_name = name;
-    // ESP_LOGV("NAME", str_name);
-
     Serial.printf("[BUTTON] Button for pin %i initialized.\n", _pin);
     if(!_enabled) {
         Serial.printf("[BUTTON] Button for pin %i is disabled.\n", _pin);
