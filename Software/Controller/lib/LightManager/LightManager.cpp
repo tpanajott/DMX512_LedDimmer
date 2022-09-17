@@ -13,6 +13,7 @@ void LightManager::initDimmerButton(uint8_t id, uint8_t pin, uint8_t min, uint8_
     this->dimmerButtons[id].pin = pin;
     this->dimmerButtons[id].min = min;
     this->dimmerButtons[id].max = max;
+    this->dimmerButtons[id].dimLevel = max;
     this->dimmerButtons[id].channel = channel;
     this->dimmerButtons[id].enabled = enabled;
     this->dimmerButtons[id].name = name;
@@ -102,7 +103,7 @@ void LightManager::_performDimmingOfLight(uint8_t buttonIndex) {
     if(millis() - this->dimmerButtons[buttonIndex].lastDimEvent >= this->dimmerButtons[buttonIndex].dimmingSpeed) {
         // Wait between each dimming event as set by the dimmingSpeed variable.
         if(this->dimmerButtons[buttonIndex].dimLevel > this->dimmerButtons[buttonIndex].min && this->dimmerButtons[buttonIndex].dimLevel < this->dimmerButtons[buttonIndex].max) {
-            // Only change dimLevel if between positions. Handle edge cases below as required by holdPeriod.
+            // Only change dimLevel if between positions. Handle edge cases in "else if" below as required by holdPeriod.
             if (this->dimmerButtons[buttonIndex].direction) {
                 this->setLightLevel(buttonIndex, this->dimmerButtons[buttonIndex].dimLevel + 1);
             } else {
@@ -111,13 +112,18 @@ void LightManager::_performDimmingOfLight(uint8_t buttonIndex) {
             // Update when the last dimming event occured.
             this->dimmerButtons[buttonIndex].lastDimEvent = millis();
         } else if (this->dimmerButtons[buttonIndex].dimLevel <= this->dimmerButtons[buttonIndex].min || this->dimmerButtons[buttonIndex].dimLevel >= this->dimmerButtons[buttonIndex].max) {
+            // Handle edge cases here.
+
             // Current level is equal to min or max, hold until holdPeriod is over.
             if(millis() - this->dimmerButtons[buttonIndex].lastDimEvent >= this->dimmerButtons[buttonIndex].holdPeriod) {
-                // Hold perios is over, change direction and resume regular dimming
-                this->dimmerButtons[buttonIndex].direction = !this->dimmerButtons[buttonIndex].direction;
-                if (this->dimmerButtons[buttonIndex].direction) {
+                // Hold period is over, change direction and resume regular dimming
+                if(this->dimmerButtons[buttonIndex].dimLevel <= this->dimmerButtons[buttonIndex].min) {
+                    // We are currently at min, invert direction and set current dimming to min + 1.
+                    // The rest of the dimming is handled as usual above.
+                    this->dimmerButtons[buttonIndex].direction = true;
                     this->setLightLevel(buttonIndex, this->dimmerButtons[buttonIndex].min + 1);
                 } else {
+                    this->dimmerButtons[buttonIndex].direction = false;
                     this->setLightLevel(buttonIndex, this->dimmerButtons[buttonIndex].max - 1);
                 }
                 // Update when the last dimming event occured.
@@ -179,6 +185,9 @@ void LightManager::setLightLevel(uint8_t buttonIndex, uint8_t dimLevel) {
 
 // Set the light level of a dimmerButton. Will clamp to min/max levels.
 void LightManager::setAutoDimmingTarget(uint8_t buttonIndex, uint8_t dimLevel) {
+    // Make direction the inverse of dimming direction.
+    this->dimmerButtons[buttonIndex].direction = (this->dimmerButtons[buttonIndex].dimLevel <= dimLevel);
+    
     if(this->dimmerButtons[buttonIndex].outputState) {
         // If the light is currently on, set the dimming target and auto-dim.
         if(dimLevel < this->dimmerButtons[buttonIndex].min) {

@@ -686,7 +686,7 @@ void setupWebServer() {
 void sendMqttLightUpdate(int buttonId) {
   // Send MQTT Light Status update if light is enabled
   if(lMan.dimmerButtons[buttonId].enabled && millis() - lMan.dimmerButtons[buttonId].lastMqttUpdate >= lMan.dimmerButtons[buttonId].mqttUpdateInterval) {
-    LOG_DEBUG("Sending MQTT status update for dimmerButton[", buttonId, "]");
+    LOG_TRACE("Sending MQTT status update for dimmerButton[", buttonId, "]");
     MQTTLight sendLight;
     sendLight.name = lMan.dimmerButtons[buttonId].name;
     sendLight.state = lMan.dimmerButtons[buttonId].outputState;
@@ -919,7 +919,7 @@ void setup() {
   pinMode(STATUS_LED_PIN, OUTPUT);
 
   Serial.begin(115200);
-  LOG_SET_LEVEL(DebugLogLevel::LVL_TRACE);
+  LOG_SET_LEVEL(DebugLogLevel::LVL_DEBUG);
 
   if(initLittleFS()) {
     checkIfFactoryReset(); // Check if button for factory reset is being held
