@@ -197,6 +197,7 @@ void LightManager::setAutoDimmingTarget(uint8_t buttonIndex, uint8_t dimLevel) {
         }
         this->dimmerButtons[buttonIndex].autoDimTarget = dimLevel;
         this->dimmerButtons[buttonIndex].isAutoDimming = true;
+        this->dimmerButtons[buttonIndex].sendMqttUpdate = true;
     } else {
         // If the light is currently off, set current level to target
         // and then turn on the light.

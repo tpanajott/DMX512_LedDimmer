@@ -98,30 +98,30 @@ String config_file_data = ""; // Used to store config file data while updating L
 void setupWiFi() {
   // If a configuration exists, continue to connect to configured WiFi
   if(!String(config.wifi_ssid).isEmpty()) {
-    Serial.printf("[WIFI] Configuration exists. Trying to connect to WiFi %s\n", config.wifi_ssid);
+    LOG_INFO("WIFI Configuration exists. Trying to connect to WiFi", config.wifi_ssid);
     WiFi.hostname(config.wifi_hostname);
     WiFi.begin(config.wifi_ssid, config.wifi_psk);
     WiFi.setAutoConnect(true);
     WiFi.softAPdisconnect(true);
   } else {
-    Serial.println("[WIFI] No configuration exists! Starting configuration AP.");
+    LOG_ERROR("No WiFi configuration exists! Starting configuration AP.");
     IPAddress local_ip(192,168,1,1);
     IPAddress gateway(192,168,1,1);
     IPAddress subnet(255,255,255,0);
 
     if(WiFi.softAPConfig(local_ip, gateway, subnet)) {
-      Serial.println("[WIFI] Soft-AP configuration applied.");
+      LOG_INFO("Soft-AP configuration applied.");
       if(WiFi.softAP("Light Controller", "password")) {
-        Serial.println("[WIFI] Soft-AP started.");
+        LOG_INFO("Soft-AP started.");
 
-        Serial.println("[WIFI] SSID: Light Controller");
-        Serial.println("[WIFI] PSK : password");
-        Serial.printf("[WIFI] IP Address: %s\n", WiFi.softAPIP().toString().c_str());
+        LOG_INFO("WiFi SSID: Light Controller");
+        LOG_INFO("WiFi PSK : password");
+        LOG_INFO("WiFi IP Address:", WiFi.softAPIP().toString().c_str());
       } else {
-        Serial.println("[WIFI] Failed to start Soft-AP!");
+        LOG_ERROR("Failed to start Soft-AP!");
       }
     } else {
-      Serial.println("[WIFI] Failed to apply Soft-AP configuration!");
+      LOG_ERROR("Failed to apply Soft-AP configuration!");
     }
   }
 }
@@ -132,16 +132,16 @@ void taskWiFiManager() {
   if(millis() - lastWiFiCheckMillis >= config.wifi_retry_timeout_ms) {
     if(strcmp(config.wifi_ssid, "") != 0) { // Only check WiFi if an SSID is configured
       if(WiFi.status() != WL_CONNECTED) {
-        Serial.printf("[WIFI] Trying to connect to WiFi %s.\n", config.wifi_ssid);
+        LOG_INFO("Trying to connect to WiFi", config.wifi_ssid);
       } else if(WiFi.status() == WL_CONNECTED && !lastWiFiCheckStatus) {
-        Serial.printf("[WIFI] Connected to %s as %s.\n", config.wifi_ssid, config.wifi_hostname);
-        Serial.printf("[WIFI] IP Address : %s\n", WiFi.localIP().toString().c_str());
-        Serial.printf("[WIFI] Subnet Mask: %s\n", WiFi.subnetMask().toString().c_str());
-        Serial.printf("[WIFI] MAC Address: %s\n", WiFi.macAddress().c_str());
-        Serial.printf("[WIFI] Gateway    : %s\n", WiFi.gatewayIP().toString().c_str());
-        Serial.printf("[WIFI] DNS        : %s\n", WiFi.dnsIP().toString().c_str());
-        Serial.printf("[WIFI] RSSI       : %i\n", WiFi.RSSI());
-        Serial.printf("[WIFI] SSID       : %s\n", WiFi.SSID().c_str());
+        LOG_INFO("WiFi Connected to ", config.wifi_ssid, " as", config.wifi_hostname);
+        LOG_INFO("WiFi IP Address :", WiFi.localIP().toString().c_str());
+        LOG_INFO("WiFi Subnet Mask:", WiFi.subnetMask().toString().c_str());
+        LOG_INFO("WiFi MAC Address:", WiFi.macAddress().c_str());
+        LOG_INFO("WiFi Gateway    :", WiFi.gatewayIP().toString().c_str());
+        LOG_INFO("WiFi DNS        :", WiFi.dnsIP().toString().c_str());
+        LOG_INFO("WiFi RSSI       :", WiFi.RSSI());
+        LOG_INFO("WiFi SSID       :", WiFi.SSID().c_str());
       }
       lastWiFiCheckMillis = millis();
       lastWiFiCheckStatus = (WiFi.status() == WL_CONNECTED);
@@ -150,28 +150,28 @@ void taskWiFiManager() {
 }
 
 bool initLittleFS() {
-  Serial.println("[CONFIG] Initializing LittleFS.");
+  LOG_INFO("Initializing LittleFS.");
   if(!LittleFS.begin()){
-    Serial.println("[CONFIG] LITTLEFS Mount Failed. Device needs to be re-flashed.");
+    LOG_ERROR("LITTLEFS Mount Failed. Device needs to be re-flashed.");
     return false;
   }
-  Serial.println("[CONFIG] LittleFS initialized without error.");
+  LOG_DEBUG("LittleFS initialized without error.");
   return true;
 }
 
 // A factory default is simply done by removing the config file. Next time default values will be loaded.
 bool doFactoryReset() {
   if(LittleFS.exists("/config.json")) {
-    Serial.println("[INFO] Device reset requested.");
+    LOG_INFO("Device reset requested.");
     return LittleFS.remove("/config.json"); // Remove the config file in order to reset the device to defaults
   } else {
-    Serial.println("[INFO] Tried to do a factory reset when no file exists. Returning success.");
+    LOG_INFO("Tried to do a factory reset when no file exists. Returning success.");
     return true;
   }
 }
 
 bool loadConfig() {
-  Serial.println("[CONFIG] Loading configuration.");
+  LOG_INFO("Loading configuration.");
   // Read config file into JSON object
   File config_file = LittleFS.open("/config.json", "r");
   StaticJsonDocument<2048> doc;
@@ -180,12 +180,12 @@ bool loadConfig() {
     // Read file into JSON object
     DeserializationError error = deserializeJson(doc, config_file);
     if (error) {
-      Serial.println("[CONFIG] Failed to deserialize config file! Loading default values.");
+      LOG_ERROR("Failed to deserialize config file! Loading default values.");
       config_file.close();
     }
     config_file.close();
   } else {
-    Serial.println("[CONFIG] Failed to open 'config.json' for reading! Loading default values.");
+    LOG_ERROR("Failed to open 'config.json' for reading! Loading default values.");
   }
 
   // WiFi values
@@ -247,14 +247,14 @@ bool loadConfig() {
   // Misc values
   config.home_assistant_online_wait_period_ms = doc["home_assistant_online_wait_period_ms"] | 30000;
 
-  Serial.println("[CONFIG] Configuration loaded.");
+  LOG_INFO("Configuration loaded.");
   return true;
 }
 
 void saveConfigFromWeb(AsyncWebServerRequest *request) {
   File config_file = LittleFS.open("/config.json", "w");
   if(!config_file) {
-    Serial.println("[CONFIG] Failed to open 'config.json' for writing.");
+    LOG_ERROR("Failed to open 'config.json' for writing.");
   }
 
   StaticJsonDocument<2048> json;
@@ -321,9 +321,9 @@ void saveConfigFromWeb(AsyncWebServerRequest *request) {
   json["button4_enabled"] = request->hasArg("button4_enabled");
 
   if(serializeJson(json, config_file) == 0) {
-    Serial.println("[CONFIG] Failed to save config file.");
+    LOG_ERROR("Failed to save config file.");
   } else {
-    Serial.println("[CONFIG] Saved config file.");
+    LOG_INFO("Saved config file.");
   }
   config_file.close();
   request->redirect("/reboot");
@@ -419,17 +419,14 @@ void indexDataEventHandler(AsyncWebSocket * server, AsyncWebSocketClient * clien
     sendButtonData(client);
   } else if(type == WS_EVT_ERROR){
     //error was received from the other end
-    Serial.printf("[INDEX_DATA_SOCKET] ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t*)arg), (char*)data);
+    LOG_ERROR("INDEX_DATA_SOCKET error: ws[", server->url(), "][", client->id(), "] error(", *((uint16_t*)arg), "):", (char*)data);
   } else if(type == WS_EVT_DATA){
     //data packet
     AwsFrameInfo * info = (AwsFrameInfo*)arg;
     if(info->final && info->index == 0 && info->len == len){
       //the whole message is in a single frame and we got all of it's data
-      // Serial.printf("[INDEX_DATA_SOCKET] ws[%s][%u] %s-message[%llu]\n", server->url(), client->id(), (info->opcode == WS_TEXT)?"text":"binary", info->len);
       if(info->opcode == WS_TEXT){
         data[len] = 0;
-        // String message = String((char*)data);
-        // Serial.printf("%s\n", message.c_str());
         StaticJsonDocument<256> doc;
         DeserializationError error = deserializeJson(doc, (char*)data);
         if(error) {
@@ -512,7 +509,7 @@ void respondAvailableWiFiNetworks(AsyncWebServerRequest *request) {
   } else if(n){
     for (int i = 0; i < n; ++i){
       if(!WiFi.SSID(i).isEmpty()) {
-        Serial.printf("[WIFI] Found WiFi %s\n", WiFi.SSID(i).c_str());
+        LOG_DEBUG("Found WiFi", WiFi.SSID(i).c_str());
         if(i) json += ",";
         json += "{";
         json += "\"rssi\":"+String(WiFi.RSSI(i));
@@ -556,7 +553,7 @@ void respondAvailableWiFiNetworks(AsyncWebServerRequest *request) {
 
 void performFirmwareUpdate(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
   if(!index){
-    Serial.printf("Starting flash of file: '%s'. Length: %i\n", filename.c_str(), request->contentLength());
+    LOG_INFO("Starting flash of file: '", filename.c_str(), "'. Length:", request->contentLength());
 
     Update.runAsync(true);
     // Detect update type depending on filename
@@ -565,7 +562,7 @@ void performFirmwareUpdate(AsyncWebServerRequest *request, String filename, size
       uploadType = U_FLASH;
       uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
       if(!Update.begin(maxSketchSpace, uploadType)) {
-        Serial.println("[UPDATE] ERROR! Could not start update, error:");
+        LOG_ERROR("Update error! Could not start update, error:");
         Update.printError(Serial);
       }
     } else if (filename.startsWith("littlefs") && filename.endsWith(".bin")) {
@@ -573,7 +570,7 @@ void performFirmwareUpdate(AsyncWebServerRequest *request, String filename, size
       // write it to the new LittleFS.
       
       if(LittleFS.exists("/config.json")) {
-        Serial.println("[UPDATE] Will restore config file after update.");
+        LOG_INFO("Will restore config file after update.");
         File config_file = LittleFS.open("/config.json", "r");
         if(config_file) {
           while(config_file.available()) {
@@ -581,14 +578,14 @@ void performFirmwareUpdate(AsyncWebServerRequest *request, String filename, size
           }
           config_file.close();
         } else {
-          Serial.println("[UPDATE] Failed to store config file in temporary variable while updating.");
+          LOG_ERROR("[UPDATE] Failed to store config file in temporary variable while updating.");
         }
       }
       
       uploadType = U_FS;
       size_t fsSize = ((size_t) &_FS_end - (size_t) &_FS_start);
       if(!Update.begin(fsSize, uploadType)) {
-        Serial.println("[UPDATE] ERROR! Could not start update, error:");
+        LOG_ERROR("Update error! Could not start update, error:");
         Update.printError(Serial);
       }
     } else {
@@ -600,11 +597,11 @@ void performFirmwareUpdate(AsyncWebServerRequest *request, String filename, size
   // If no error has occrued, continue updating
   if(!Update.hasError()){
     if(Update.write(data, len) != len){
-      Serial.println("[UPDATE] Error occured: ");
+      LOG_ERROR("Update error occured: ");
       Update.printError(Serial);
     } else {
       int size = index + len;
-      Serial.printf("[UPDATE] Written %i\n", size);
+      LOG_INFO("Update written", size);
     }
   }
 
@@ -619,15 +616,15 @@ void performFirmwareUpdate(AsyncWebServerRequest *request, String filename, size
       if(config_file_data.length() > 0) {
         File config_file = LittleFS.open("/config.json", "w");
         if(config_file) {
-          Serial.println("[UPDATE] Restoring config file after LittleFS update!");
+          LOG_INFO("Restoring config file after LittleFS update!");
           config_file.write(config_file_data.c_str());
           config_file.close();
         } else {
-          Serial.println("[UPDATE] ERROR! Could not restore config file after update.");
+          LOG_ERROR("ERROR! Could not restore config file after update.");
         }
       }
     }
-    Serial.printf("[UPDATE] Update of file: %s ended\n", filename.c_str());
+    LOG_INFO("Update of file: ", filename.c_str(), " ended");
     if(hasFirmwareUpdated && hasLITTLEFSUpdated) {
       request->send(200, "text/plain", "OK");
     }
@@ -704,7 +701,7 @@ void registerMqttLights() {
   // // Register all enabled lights and subscribe to relevant topics
   for(int i = 0; i < 4; i++) {
     if(lMan.dimmerButtons[i].enabled) {
-      Serial.printf("[MQTT] Registring light with name: %s\n", lMan.dimmerButtons[i].name);
+      LOG_INFO("Registring MQTT light with name:", lMan.dimmerButtons[i].name);
       MQTTLight light;
       light.name = lMan.dimmerButtons[i].name;
       hamqtt.registerLight(light, &pubSubClient);
@@ -726,11 +723,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
     String status_string = String(data);
 
-    // String data_string = String(data);
-    // data_string.trim();
-    // Serial.printf("[MQTT] Home Assistant status update: %s\n", data_string.c_str());
     if(status_string.startsWith("online")) {
-      Serial.println("[MQTT] Home Assistant reconneced to MQTT. Starting wait period before registring lights via MQTT.");
+      LOG_INFO("Home Assistant reconneced to MQTT. Starting wait period before registring lights via MQTT.");
       // Signal that home assistant has come online, wait for defined time before sending update
       _homeAssistantOnlineUpdate = millis();
       _triggerHomeAssistantOnlineUpdate = true;
@@ -740,14 +734,14 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       sprintf(json_data, "{\"home_assistant_status\": \"Connected\"}");
       indexDataSocket.textAll(json_data);
     } else if (status_string.startsWith("offline")) {
-      Serial.println("[MQTT] Home Assistant unavailable on MQTT.");
+      LOG_ERROR("Home Assistant unavailable on MQTT.");
       _homeAssistantAvailableOnMQTT = false;
       // Tell all connected clients about the error
       char json_data[64];
       sprintf(json_data, "{\"home_assistant_status\": \"DISCONNECTED\"}");
       indexDataSocket.textAll(json_data);
     } else {
-      Serial.printf("[MQTT] Unknown Home Assistant status: %s\n", status_string.c_str());
+      LOG_ERROR("Unknown Home Assistant status:", status_string.c_str());
     }
   } else {
     hamqtt.mqttHandler(topic, payload, length);
@@ -779,14 +773,14 @@ void mqtt_callback(MQTTLight light) {
 
 void setupMQTT() {
   if(strcmp(config.mqtt_server, "") != 0) {
-    Serial.printf("[MQTT] Configuration exists. Trying to connect to MQTT server %s\n", config.mqtt_server);
+    LOG_INFO("MQTT Configuration exists. Trying to connect to MQTT server", config.mqtt_server);
     // Configure MQTT
     pubSubClient.setServer(config.mqtt_server, config.mqtt_port);
     pubSubClient.setBufferSize(2048); // Increase MQTT buffer size
     pubSubClient.setCallback(mqttCallback);
     hamqtt.begin(&mqtt_callback, config.mqtt_base_topic, config.wifi_hostname);
   } else {
-    Serial.println("[MQTT] No configuration for MQTT exists.");
+    LOG_ERROR("No configuration for MQTT exists.");
   }
 }
 
@@ -798,7 +792,7 @@ void taskMQTTManager() {
       sprintf(json_data, "{\"mqtt_status\": \"DISCONNECTED\"}");
       indexDataSocket.textAll(json_data);
       
-      Serial.println("[MQTT] Trying to connect to MQTT...");
+      LOG_INFO("Trying to connect to MQTT...");
       // Last will and testament configuration for availability detection in Home Assistant
       String availability_topic = String(config.mqtt_base_topic);
       availability_topic.concat("light/");
@@ -815,17 +809,19 @@ void taskMQTTManager() {
         char json_data[64];
         sprintf(json_data, "{\"mqtt_status\": \"Connected\"}");
         indexDataSocket.textAll(json_data);
-        Serial.println("[MQTT] Connected");
+        LOG_INFO("MQTT Connected");
         registerMqttLights();
         // Subscribe to home assistant status topic
         String status_topic = config.mqtt_base_topic;
         status_topic.concat("status");
-        Serial.printf("[MQTT] Subscribing to home assistant status topic: %s\n", status_topic.c_str());
+        LOG_INFO("Subscribing to home assistant MQTT status topic:", status_topic.c_str());
+        LOG_INFO("Assuming home assistant available on MQTT.");
+        _homeAssistantAvailableOnMQTT = true;
         pubSubClient.subscribe(status_topic.c_str());
         hamqtt.sendOnlineStatusUpdate(&pubSubClient);
       } else {
-        Serial.printf("[MQTT] Failed to connect to MQTT, rc=%i\n", pubSubClient.state());
-        Serial.println("[MQTT] Trying again in 5 seconds");
+        LOG_ERROR("Failed to connect to MQTT, rc=", pubSubClient.state());
+        LOG_INFO("Trying again in 5 seconds");
       }
       lastMqttReconnectTry = millis();
     }
@@ -845,16 +841,16 @@ void checkIfFactoryReset() {
       digitalWrite(STATUS_LED_PIN, (millis() / 50) % 2 == 0);
       if(buttonPressedTime + 10000 <= millis()) {
         digitalWrite(STATUS_LED_PIN, HIGH);
-        Serial.println("[INFO] Factory reset button held for 10 seconds. Performing reset.");
+        LOG_INFO("Factory reset button held for 10 seconds. Performing reset.");
         
         if(doFactoryReset()) { // Remove the config file in order to reset the device to defaults
-          Serial.println("[INFO] Config file removed.");
+          LOG_INFO("Config file removed.");
         } else {
-          Serial.println("[LittleFS] Failed to delete config file.");
+          LOG_ERROR("Failed to delete config file.");
         }
         delay(500);
         while(digitalRead(FACTORY_RESET_PIN) == LOW) {
-          Serial.println("[INFO] Erase still LOW. Waiting for button release.");
+          LOG_INFO("Erase still LOW. Waiting for button release.");
           delay(500);
         }
         ESP.restart();
@@ -862,7 +858,7 @@ void checkIfFactoryReset() {
       delay(25);
     }
   } else {
-    Serial.println("[LittleFS] No flash erease requested.");
+    LOG_INFO("No flash erease requested.");
   }
 }
 
@@ -932,7 +928,7 @@ void setup() {
   } else {
     // LittleFS has failed. Hang until device is rebooted
     for(;;) {
-      Serial.println("[ERROR] Failed to mount LittleFS.");
+      LOG_ERROR("Failed to mount LittleFS! Will stop execution!");
       digitalWrite(STATUS_LED_PIN, HIGH);
       delay(1000);
     }
@@ -940,7 +936,7 @@ void setup() {
 
   // Get number of channels in use with DMX and initialize DMX library.
   int number_of_channels = getHighestDMXChannelInUse();
-  Serial.printf("[DMX] Initializing DMX with %i channels.\n", number_of_channels);
+  LOG_INFO("Initializing DMX with ", number_of_channels, " channels.");
   dmx.init(number_of_channels);
   // Start LightManager which will handle all buttonEvents.
   lMan.init(&dmx, &pubSubClient);
@@ -948,7 +944,7 @@ void setup() {
   setupDimmerButtons();
 
   hamqtt.begin(&mqtt_callback, config.mqtt_base_topic, config.wifi_hostname);
-  Serial.println("[INFO] Setup done. Start loop.");
+  LOG_INFO("Setup done. Start loop.");
 
   // TODO: Remove before final release.
   pinMode(D1, OUTPUT);
@@ -977,7 +973,7 @@ void loop() {
   // Check if home assistant has come online and we are waiting to send an update
   // Also check if we have waited enough time to send a register update
   if(_triggerHomeAssistantOnlineUpdate && millis() - _homeAssistantOnlineUpdate >= config.home_assistant_online_wait_period_ms) {
-    Serial.println("[MQTT] Wait period for Home Assistant registration over, registrating lights.");
+    LOG_INFO("Wait period for Home Assistant registration over, registrating lights.");
     registerMqttLights();
     // Wait for registration to complete and then send status update
     delay(1000);
@@ -990,7 +986,7 @@ void loop() {
   }
 
   if(doReboot && millis() >= doRebootAt) {
-    Serial.println("[REBOOT] Rebooting device");
+    LOG_INFO("Rebooting device");
     ESP.restart();
   } else if (digitalRead(FACTORY_RESET_PIN) == LOW) {
     ESP.restart();
