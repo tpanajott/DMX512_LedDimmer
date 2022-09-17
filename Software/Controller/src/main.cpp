@@ -85,13 +85,6 @@ bool _homeAssistantAvailableOnMQTT = true; // Home assistant do not persist stat
 // Web server variables
 AsyncWebServer server(80);
 AsyncWebSocket indexDataSocket("/index_data");
-// Dimmer buttons
-// DimmerButton dimmerButtons[DIMMER_BUTTONS_NUM] = {
-//   DimmerButton(BUTTON_1_PIN),
-//   DimmerButton(BUTTON_2_PIN),
-//   DimmerButton(BUTTON_3_PIN),
-//   DimmerButton(BUTTON_4_PIN)
-// };
 LightManager lMan;
 // Misc variables
 bool doReboot = false;
@@ -445,8 +438,38 @@ void indexDataEventHandler(AsyncWebSocket * server, AsyncWebSocketClient * clien
           return;
         }
         String buttonId = doc["id"];
-        int value = doc["value"];
-        // TODO: Reimplement web interface controls
+        int dimmingTarget = doc["value"];
+
+        if(buttonId.startsWith("button1")) {
+          if(dimmingTarget > 0) {
+            lMan.setOutputState(0, true);
+            lMan.setAutoDimmingTarget(0, dimmingTarget);
+          } else {
+            lMan.setOutputState(0, false);
+          }
+        } else if(buttonId.startsWith("button2")) {
+          if(dimmingTarget > 0) {
+            lMan.setOutputState(1, true);
+            lMan.setAutoDimmingTarget(1, dimmingTarget);
+          } else {
+            lMan.setOutputState(1, false);
+          }
+        } else if(buttonId.startsWith("button3")) {
+          if(dimmingTarget > 0) {
+            lMan.setOutputState(2, true);
+            lMan.setAutoDimmingTarget(2, dimmingTarget);
+          } else {
+            lMan.setOutputState(2, false);
+          }
+        } else if(buttonId.startsWith("button4")) {
+          if(dimmingTarget > 0) {
+            lMan.setOutputState(3, true);
+            lMan.setAutoDimmingTarget(3, dimmingTarget);
+          } else {
+            lMan.setOutputState(3, false);
+          }
+        }
+
         // if(buttonId.startsWith("button1")) {
         //   if(value > 0) {
         //     dimmerButtons[0].setOutputState(true);
@@ -662,12 +685,16 @@ void setupWebServer() {
 // Send light status to MQTT for spcific light connected to buttonId
 void sendMqttLightUpdate(int buttonId) {
   // Send MQTT Light Status update if light is enabled
-  if(lMan.dimmerButtons[buttonId].enabled) {
+  if(lMan.dimmerButtons[buttonId].enabled && millis() - lMan.dimmerButtons[buttonId].lastMqttUpdate >= lMan.dimmerButtons[buttonId].mqttUpdateInterval) {
+    LOG_DEBUG("Sending MQTT status update for dimmerButton[", buttonId, "]");
     MQTTLight sendLight;
     sendLight.name = lMan.dimmerButtons[buttonId].name;
     sendLight.state = lMan.dimmerButtons[buttonId].outputState;
     sendLight.brightness = lMan.dimmerButtons[buttonId].dimLevel;
     hamqtt.sendLightUpdate(sendLight, &pubSubClient);
+    // Update when the last MQTT update was sent and remove mark for sending a new update.
+    lMan.dimmerButtons[buttonId].lastMqttUpdate = millis();
+    lMan.dimmerButtons[buttonId].sendMqttUpdate = false;
   }
 }
 
@@ -681,12 +708,9 @@ void registerMqttLights() {
       MQTTLight light;
       light.name = lMan.dimmerButtons[i].name;
       hamqtt.registerLight(light, &pubSubClient);
+      // Mark lights due for an MQTT status update.
+      lMan.dimmerButtons[i].sendMqttUpdate = true;
     }
-  }
-
-  // Send actual status for all enabled lights
-  for(int i = 0; i < 4; i++) {
-    sendMqttLightUpdate(i);
   }
 }
 
@@ -742,15 +766,14 @@ void mqtt_callback(MQTTLight light) {
     buttonIndex = 3;
   }
   if(buttonIndex >= 0) {
-    // TODO: Reimplement MQTT functionality
-    // if(light.brightness > 0) {
-    //   dimmerButtons[buttonIndex].setOutputState(true);
-    //   dimmerButtons[buttonIndex].setDimmingTarget(light.brightness);
-    // } else {
-    //   dimmerButtons[buttonIndex].setOutputState(light.state);
-    // }
+    if(light.brightness > 0) {
+      lMan.setAutoDimmingTarget(buttonIndex, light.brightness);
+      lMan.setOutputState(buttonIndex, light.state);
+    } else {
+      lMan.setOutputState(buttonIndex, light.state);
+    }
   } else {
-    Serial.printf("[MQTT] Unknown button %s\n", light.name.c_str());
+    LOG_ERROR("Unknown button", light.name.c_str());
   }
 }
 
@@ -813,8 +836,6 @@ void taskMQTTManager() {
 }
 
 void checkIfFactoryReset() {
-  pinMode(FACTORY_RESET_PIN, INPUT);
-  pinMode(STATUS_LED_PIN, OUTPUT);
   delay(25);
 
   if(digitalRead(FACTORY_RESET_PIN) == LOW) {
@@ -894,6 +915,9 @@ int getHighestDMXChannelInUse() {
 
 // Setup has to be on bottom to be able to reference stuff from above
 void setup() {
+  pinMode(FACTORY_RESET_PIN, INPUT);
+  pinMode(STATUS_LED_PIN, OUTPUT);
+
   Serial.begin(115200);
   LOG_SET_LEVEL(DebugLogLevel::LVL_TRACE);
 
@@ -919,7 +943,7 @@ void setup() {
   Serial.printf("[DMX] Initializing DMX with %i channels.\n", number_of_channels);
   dmx.init(number_of_channels);
   // Start LightManager which will handle all buttonEvents.
-  lMan.init(&dmx);
+  lMan.init(&dmx, &pubSubClient);
 
   setupDimmerButtons();
 
@@ -927,7 +951,7 @@ void setup() {
   Serial.println("[INFO] Setup done. Start loop.");
 
   // TODO: Remove before final release.
-  pinMode(D0, OUTPUT);
+  pinMode(D1, OUTPUT);
 }
 
 void loop() {
@@ -937,18 +961,17 @@ void loop() {
 
   // Update state of all dimmer buttons
   for(int i = 0; i < 4; i++) {
-    // Send MQTT and web socket status update if flagged
-    // TODO: Reimplement MQTT update functionality
-    // if(dimmerButtons[i].sendStatusUpdate()) {
-    //   sendMqttLightUpdate(i);
-    //   char json_data[64];
-    //   if(dimmerButtons[i].getOutputState()) {
-    //     sprintf(json_data, "{\"button%i_output\": %i}", i+1, dimmerButtons[i].getLevel());
-    //   } else {
-    //     sprintf(json_data, "{\"button%i_output\": \"Off\"}", i+1);
-    //   }
-    //   indexDataSocket.textAll(json_data);
-    // }
+    // Send MQTT and web socket status update if marked due and on interval.
+    if(lMan.dimmerButtons[i].sendMqttUpdate && millis() - lMan.dimmerButtons[i].lastMqttUpdate >= lMan.dimmerButtons[i].mqttUpdateInterval) {
+      sendMqttLightUpdate(i);
+      char json_data[64];
+      if(lMan.dimmerButtons[i].outputState) {
+        sprintf(json_data, "{\"button%i_output\": %i}", i+1, lMan.dimmerButtons[i].dimLevel);
+      } else {
+        sprintf(json_data, "{\"button%i_output\": \"Off\"}", i+1);
+      }
+      indexDataSocket.textAll(json_data);
+    }
   }
 
   // Check if home assistant has come online and we are waiting to send an update
@@ -958,8 +981,9 @@ void loop() {
     registerMqttLights();
     // Wait for registration to complete and then send status update
     delay(1000);
+    // Mark lights due for update.
     for(int i = 0; i < 4; i++) {
-      sendMqttLightUpdate(i);
+      lMan.dimmerButtons[i].sendMqttUpdate = true;
     }
     hamqtt.sendOnlineStatusUpdate(&pubSubClient);
     _triggerHomeAssistantOnlineUpdate = false;
@@ -972,9 +996,18 @@ void loop() {
     ESP.restart();
   }
 
+  // Manage Status LED
+  if(!WiFi.isConnected()) {
+    digitalWrite(STATUS_LED_PIN, (millis() / 1000) % 2 == 0); // Blink every second if no WiFi connection is active.
+  } else if (!pubSubClient.connected()) {
+    digitalWrite(STATUS_LED_PIN, (millis() / 100) % 2 == 0); // Rapid blink if no MQTT connection is available.
+  } else {
+    digitalWrite(STATUS_LED_PIN, LOW); // Reset status LED.
+  }
+
   // Send out DMX data update on the bus.
   dmx.update();
 
   // TODO: Remove before final release.
-  analogWrite(D0, dmx.read(1));
+  analogWrite(D1, dmx.read(1));
 }

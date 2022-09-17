@@ -3,9 +3,9 @@
 
 LightManager *LightManager::instance; // Give somewhere in ram for instance to exist
 
-void LightManager::init(DMXESPSerial *dmx) {
+void LightManager::init(DMXESPSerial *dmx, PubSubClient *pubSubClient) {
     LightManager::instance = this;
-    this->dmx = dmx;
+    this->_dmx = dmx;
     LOG_INFO("LightManager initialized.");
 }
 
@@ -44,6 +44,7 @@ void LightManager::handleDimmerButtonEvent() {
     }
 }
 
+// Loop through and do any needed updates
 void LightManager::loop() {
     for(int i = 0; i < 4; i++) {
         // If button is enabled and has changed, update status.
@@ -52,6 +53,8 @@ void LightManager::loop() {
                 this->_updateDimmerButtonStatus(i);
             } else if (this->dimmerButtons[i].isDimming) {
                 this->_performDimmingOfLight(i);
+            } else if (this->dimmerButtons[i].isAutoDimming) {
+                this->_performAutoDimmingOfLight(i);
             }
         }
     }
@@ -94,6 +97,8 @@ void LightManager::_updateDimmerButtonStatus(uint8_t buttonIndex) {
 // The light is set to currently dim. Loop through dimming
 // until the flag for dimming is not set.
 void LightManager::_performDimmingOfLight(uint8_t buttonIndex) {
+    // Disable any autoDimming that is currently happening
+    this->dimmerButtons[buttonIndex].isAutoDimming = false;
     if(millis() - this->dimmerButtons[buttonIndex].lastDimEvent >= this->dimmerButtons[buttonIndex].dimmingSpeed) {
         // Wait between each dimming event as set by the dimmingSpeed variable.
         if(this->dimmerButtons[buttonIndex].dimLevel > this->dimmerButtons[buttonIndex].min && this->dimmerButtons[buttonIndex].dimLevel < this->dimmerButtons[buttonIndex].max) {
@@ -128,6 +133,21 @@ void LightManager::_performDimmingOfLight(uint8_t buttonIndex) {
     }
 }
 
+void LightManager::_performAutoDimmingOfLight(uint8_t buttonIndex) {
+    if(millis() - this->dimmerButtons[buttonIndex].lastDimEvent >= this->dimmerButtons[buttonIndex].dimmingSpeed) {
+        if(this->dimmerButtons[buttonIndex].dimLevel < this->dimmerButtons[buttonIndex].autoDimTarget) {
+            this->setLightLevel(buttonIndex, this->dimmerButtons[buttonIndex].dimLevel + 1);
+        } else if(this->dimmerButtons[buttonIndex].dimLevel > this->dimmerButtons[buttonIndex].autoDimTarget) {
+            this->setLightLevel(buttonIndex, this->dimmerButtons[buttonIndex].dimLevel - 1);
+        } else {
+            // We arrived at the level, stop autoDimming.
+            this->dimmerButtons[buttonIndex].isAutoDimming = false;
+        }
+
+        this->dimmerButtons[buttonIndex].lastDimEvent = millis();
+    }
+}
+
 // Return the current state of a button.
 // True: button is pressed.
 // False: button is not pressed.
@@ -150,9 +170,29 @@ void LightManager::setLightLevel(uint8_t buttonIndex, uint8_t dimLevel) {
     this->dimmerButtons[buttonIndex].dimLevel = dimLevel;
     this->dimmerButtons[buttonIndex].hasChanged = true;
 
-    // If the output is on, write the new lightLevel to DMX.
+    // If the output is on, write the new lightLevel to DMX and mark due for MQTT status update.
     if(this->dimmerButtons[buttonIndex].outputState) {
-        this->dmx->write(this->dimmerButtons[buttonIndex].channel, dimLevel);
+        this->_dmx->write(this->dimmerButtons[buttonIndex].channel, dimLevel);
+        this->dimmerButtons[buttonIndex].sendMqttUpdate = true;
+    }
+}
+
+// Set the light level of a dimmerButton. Will clamp to min/max levels.
+void LightManager::setAutoDimmingTarget(uint8_t buttonIndex, uint8_t dimLevel) {
+    if(this->dimmerButtons[buttonIndex].outputState) {
+        // If the light is currently on, set the dimming target and auto-dim.
+        if(dimLevel < this->dimmerButtons[buttonIndex].min) {
+            dimLevel = this->dimmerButtons[buttonIndex].min;
+        } else if(dimLevel > this->dimmerButtons[buttonIndex].max) {
+            dimLevel = this->dimmerButtons[buttonIndex].max;
+        }
+        this->dimmerButtons[buttonIndex].autoDimTarget = dimLevel;
+        this->dimmerButtons[buttonIndex].isAutoDimming = true;
+    } else {
+        // If the light is currently off, set current level to target
+        // and then turn on the light.
+        this->setLightLevel(buttonIndex, dimLevel);
+        this->setOutputState(buttonIndex, true);
     }
 }
 
@@ -162,10 +202,12 @@ void LightManager::setOutputState(uint8_t buttonIndex, bool outputState) {
 
     // Update DMX data.
     if(outputState) {
-        this->dmx->write(this->dimmerButtons[buttonIndex].channel, this->dimmerButtons[buttonIndex].dimLevel);
+        this->_dmx->write(this->dimmerButtons[buttonIndex].channel, this->dimmerButtons[buttonIndex].dimLevel);
     } else {
-        this->dmx->write(this->dimmerButtons[buttonIndex].channel, 0);
+        this->_dmx->write(this->dimmerButtons[buttonIndex].channel, 0);
     }
+    // Mark light due for MQTT status update.
+    this->dimmerButtons[buttonIndex].sendMqttUpdate = true;
 }
 
 // Static function to forward interrupts from dimmer buttons to instance
