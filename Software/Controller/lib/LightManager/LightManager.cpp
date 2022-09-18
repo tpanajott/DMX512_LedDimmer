@@ -60,6 +60,8 @@ void LightManager::loop() {
                 this->_performDimmingOfLight(&(*it));
             } else if (it->isAutoDimming) {
                 this->_performAutoDimmingOfLight(&(*it));
+            } else if (it->smoothOff) {
+                this->_performSmoothOff(&(*it));
             }
         }
     }
@@ -171,12 +173,13 @@ void LightManager::setLightLevel(DimmerButton *btn, uint8_t dimLevel) {
         dimLevel = btn->max;
     }
     btn->dimLevel = dimLevel;
+    btn->outputState = true;
     btn->hasChanged = true;
 
     // If the output is on, write the new lightLevel to DMX and mark due for MQTT status update.
     if(btn->outputState) {
-        this->_dmx->write(btn->channel, dimLevel);
         btn->sendMqttUpdate = true;
+        this->_dmx->write(btn->channel, dimLevel);
     }
 }
 
@@ -208,17 +211,44 @@ void LightManager::setAutoDimmingTarget(DimmerButton *btn, uint8_t dimLevel) {
 
 void LightManager::setOutputState(DimmerButton *btn, bool outputState) {
     // TODO: Make slowly turn on/off
-    btn->outputState = outputState;
-    btn->hasChanged = true;
+    //btn->outputState = outputState;
+    
+    // // Update DMX data.
+    // if(outputState) {
+    //     this->_dmx->write(btn->channel, btn->dimLevel);
+    // } else {
+    //     this->_dmx->write(btn->channel, 0);
+    // }
 
-    // Update DMX data.
-    if(outputState) {
-        this->_dmx->write(btn->channel, btn->dimLevel);
-    } else {
-        this->_dmx->write(btn->channel, 0);
+    if(btn->outputState && !outputState) {
+        LOG_DEBUG("Setting SmoothOff on DimmerButton");
+        btn->dimLevelBeforeSmoothOff = btn->dimLevel;
+        btn->smoothOff = true;
+        btn->hasChanged = true;
+    } else if (!btn->outputState && outputState && !btn->isAutoDimming) {
+        // Get the current light level.
+        uint8_t lightLevel = btn->dimLevel;
+        // Turn the light on on it's min level
+        this->setLightLevel(btn, btn->min);
+        // Set to auto dim up to the previosly set level.
+        this->setAutoDimmingTarget(btn, lightLevel);
     }
+
     // Mark light due for MQTT status update.
     btn->sendMqttUpdate = true;
+}
+
+// Smootly dim down to min level and then turn off output.
+void LightManager::_performSmoothOff(DimmerButton *btn) {
+    if(btn->dimLevel == btn->min) {
+        LOG_DEBUG("DimmerButton reached min level and is smooth off. Will turn off output.");
+        btn->outputState = false;
+        this->_dmx->write(btn->channel, 0);
+        btn->dimLevel = btn->dimLevelBeforeSmoothOff; // Restore dimLevel
+        btn->smoothOff = false;
+    } else {
+        this->setAutoDimmingTarget(btn, btn->min);
+    }
 }
 
 // Try to find a DimmerButton with a given ID.

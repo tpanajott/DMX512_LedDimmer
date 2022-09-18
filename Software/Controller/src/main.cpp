@@ -948,6 +948,8 @@ void setup() {
   pinMode(D1, OUTPUT);
 }
 
+// TODO: Remove before final release.
+uint8_t lastDimLevel = 0;
 void loop() {
   taskWiFiManager();
   taskMQTTManager();
@@ -1015,5 +1017,9 @@ void loop() {
   dmx.update();
 
   // TODO: Remove before final release.
-  analogWrite(D1, dmx.read(1));
+  if(dmx.read(1) != lastDimLevel) {
+    lastDimLevel = dmx.read(1);
+    analogWrite(D1, lastDimLevel); 
+    // LOG_DEBUG("New Dim Level:", lastDimLevel);
+  }
 }

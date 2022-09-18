@@ -18,6 +18,7 @@ struct DimmerButton {
     uint8 min = 0;
     uint8 max = 255;
     uint8 dimLevel = 255;
+    uint8 dimLevelBeforeSmoothOff = 255;
     uint8 autoDimTarget = 255;
     uint8 autoDimmingSpeed = 1;
     uint8 debounce_ms = 50;
@@ -44,6 +45,7 @@ struct DimmerButton {
     bool hasButtonEvent = false;
     bool isDimming = false; // Is this button set to dimming.
     bool isAutoDimming = false; // Is autoDimming from MQTT/web command.
+    bool smoothOff = false; // Dim from current level to 0 smoothly.
     char* name;
     _buttonEvent _buttonEvents[3];
 };
@@ -71,6 +73,7 @@ class LightManager {
         void _updateDimmerButtonStatus(DimmerButton *btn);
         void _performDimmingOfLight(DimmerButton *btn);
         void _performAutoDimmingOfLight(DimmerButton *btn);
+        void _performSmoothOff(DimmerButton *btn);
         unsigned long _getButtonStateTimeDelta(DimmerButton *btn, uint8_t firstEventIndex, uint8_t secondEventIndex);
         bool _getButtonState(DimmerButton *btn);
 };
