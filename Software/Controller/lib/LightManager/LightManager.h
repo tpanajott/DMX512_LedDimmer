@@ -28,8 +28,7 @@ struct DimmerButton {
     uint16_t buttonMinPressThreshold = 100;
     // MQTT 
     bool sendMqttUpdate = false;
-    uint16_t mqttUpdateInterval = 250; // Send MQTT updates with maximum this interval in ms
-    unsigned long lastMqttUpdate;
+    uint16_t mqttSendWaitTime = 500; // Time to wait after last dim event before sending an MQTT update
     // False: Dimming down.
     // True: Dimming up.
     bool direction = true;

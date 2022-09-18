@@ -679,22 +679,6 @@ void setupWebServer() {
   server.begin();
 }
 
-// Send light status to MQTT for spcific light connected to buttonId
-void sendMqttLightUpdate(int buttonId) {
-  // Send MQTT Light Status update if light is enabled
-  if(lMan.dimmerButtons[buttonId].enabled && millis() - lMan.dimmerButtons[buttonId].lastMqttUpdate >= lMan.dimmerButtons[buttonId].mqttUpdateInterval) {
-    LOG_TRACE("Sending MQTT status update for dimmerButton[", buttonId, "]");
-    MQTTLight sendLight;
-    sendLight.name = lMan.dimmerButtons[buttonId].name;
-    sendLight.state = lMan.dimmerButtons[buttonId].outputState;
-    sendLight.brightness = lMan.dimmerButtons[buttonId].dimLevel;
-    hamqtt.sendLightUpdate(sendLight, &pubSubClient);
-    // Update when the last MQTT update was sent and remove mark for sending a new update.
-    lMan.dimmerButtons[buttonId].lastMqttUpdate = millis();
-    lMan.dimmerButtons[buttonId].sendMqttUpdate = false;
-  }
-}
-
 // Register all enabled lights to MQTT
 void registerMqttLights() {
   // // Once connected, publish an announcement...
@@ -958,8 +942,18 @@ void loop() {
   // Update state of all dimmer buttons
   for(int i = 0; i < 4; i++) {
     // Send MQTT and web socket status update if marked due and on interval.
-    if(lMan.dimmerButtons[i].sendMqttUpdate && millis() - lMan.dimmerButtons[i].lastMqttUpdate >= lMan.dimmerButtons[i].mqttUpdateInterval) {
-      sendMqttLightUpdate(i);
+    if(lMan.dimmerButtons[i].sendMqttUpdate && millis() - lMan.dimmerButtons[i].lastDimEvent >= lMan.dimmerButtons[i].mqttSendWaitTime) {
+      // Send MQTT Status Update
+      LOG_TRACE("Sending MQTT status update for dimmerButton[", i, "]");
+      MQTTLight sendLight;
+      sendLight.name = lMan.dimmerButtons[i].name;
+      sendLight.state = lMan.dimmerButtons[i].outputState;
+      sendLight.brightness = lMan.dimmerButtons[i].dimLevel;
+      hamqtt.sendLightUpdate(sendLight, &pubSubClient);
+      // Update when the last MQTT update was sent and remove mark for sending a new update.
+      lMan.dimmerButtons[i].sendMqttUpdate = false;
+
+      // Send status update to any connected web sockets
       char json_data[64];
       if(lMan.dimmerButtons[i].outputState) {
         sprintf(json_data, "{\"button%i_output\": %i}", i+1, lMan.dimmerButtons[i].dimLevel);

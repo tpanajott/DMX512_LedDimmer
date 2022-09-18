@@ -25,11 +25,9 @@ void LightManager::initDimmerButton(uint8_t id, uint8_t pin, uint8_t min, uint8_
 
 void LightManager::handleDimmerButtonEvent() {
     LOG_TRACE("Processing button events.");
-    for(unsigned int i = 0; i < sizeof(this->dimmerButtons) / sizeof(DimmerButton); i++) {
+    for(unsigned int i = 0; i < 4; i++) {
         if(this->dimmerButtons[i].enabled) {
-            LOG_TRACE("Checking state of dimmerButton[", i ,"]");
             bool read_state = (digitalRead(this->dimmerButtons[i].pin) == 0);
-            LOG_TRACE("State read for dimmerButton[", i ,"]");
             if(millis() - this->dimmerButtons[i]._buttonEvents[0].millis >= this->dimmerButtons[i].debounce_ms && read_state != this->dimmerButtons[i]._buttonEvents[0].pressed) {
                 // Shift current button events in button down
                 this->dimmerButtons[i]._buttonEvents[2] = this->dimmerButtons[i]._buttonEvents[1];
@@ -199,14 +197,16 @@ void LightManager::setAutoDimmingTarget(uint8_t buttonIndex, uint8_t dimLevel) {
         this->dimmerButtons[buttonIndex].isAutoDimming = true;
         this->dimmerButtons[buttonIndex].sendMqttUpdate = true;
     } else {
-        // If the light is currently off, set current level to target
-        // and then turn on the light.
-        this->setLightLevel(buttonIndex, dimLevel);
+        // Light if currently off, turn it on on its lowest setting
+        // and then slowly dim up to target.
+        this->setLightLevel(buttonIndex, this->dimmerButtons[buttonIndex].min);
         this->setOutputState(buttonIndex, true);
+        this->setAutoDimmingTarget(buttonIndex, dimLevel);
     }
 }
 
 void LightManager::setOutputState(uint8_t buttonIndex, bool outputState) {
+    // TODO: Make slowly turn on/off
     this->dimmerButtons[buttonIndex].outputState = outputState;
     this->dimmerButtons[buttonIndex].hasChanged = true;
 
