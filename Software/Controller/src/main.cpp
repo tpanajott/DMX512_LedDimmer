@@ -330,6 +330,7 @@ void saveConfigFromWeb(AsyncWebServerRequest *request) {
 }
 
 void sendBaseData(AsyncWebSocketClient * client) {
+  LOG_TRACE("Constructing indexData BaseData");
   // A client just connected. Curate all data into a single JSON response
   StaticJsonDocument<1024> json;
   json["home_assistant_online_wait_period_ms"] = config.home_assistant_online_wait_period_ms;
@@ -348,18 +349,27 @@ void sendBaseData(AsyncWebSocketClient * client) {
   json["mqtt_base_topic"] = config.mqtt_base_topic;
   json["mqtt_status"] = pubSubClient.connected() ? "Connected" : "DISCONNECTED";
 
+  LOG_TRACE("Serializing indexData BaseData");
   char json_data[1024];
   serializeJsonPretty(json, json_data);
+  LOG_TRACE("Sending indexData BaseData");
   client->printf(json_data);
 }
 
 void sendButtonData(AsyncWebSocketClient * client) {
   // A client just connected. Curate all data into a single JSON response
+  LOG_TRACE("Gathering button data.");
+  DimmerButton* dm1 = lMan.getLightById(0);
+  DimmerButton* dm2 = lMan.getLightById(1);
+  DimmerButton* dm3 = lMan.getLightById(2);
+  DimmerButton* dm4 = lMan.getLightById(3);
+
+  LOG_TRACE("Constructing JSON data.");
   StaticJsonDocument<1024> json;
-  json["button1_output"] = lMan.dimmerButtons[0].outputState ? String(lMan.dimmerButtons[0].dimLevel) : (lMan.dimmerButtons[0].enabled ? "Off" : "DISABLED");
-  json["button2_output"] = lMan.dimmerButtons[1].outputState ? String(lMan.dimmerButtons[1].dimLevel) : (lMan.dimmerButtons[1].enabled ? "Off" : "DISABLED");
-  json["button3_output"] = lMan.dimmerButtons[2].outputState ? String(lMan.dimmerButtons[2].dimLevel) : (lMan.dimmerButtons[2].enabled ? "Off" : "DISABLED");
-  json["button4_output"] = lMan.dimmerButtons[3].outputState ? String(lMan.dimmerButtons[3].dimLevel) : (lMan.dimmerButtons[3].enabled ? "Off" : "DISABLED");
+  json["button1_output"] = dm1 != NULL && dm1->outputState ? String(dm1->dimLevel) : (dm1 == NULL || dm1->enabled ? "Off" : "DISABLED");
+  json["button2_output"] = dm2 != NULL && dm2->outputState ? String(dm2->dimLevel) : (dm2 == NULL || dm2->enabled ? "Off" : "DISABLED");
+  json["button3_output"] = dm3 != NULL && dm3->outputState ? String(dm3->dimLevel) : (dm3 == NULL || dm3->enabled ? "Off" : "DISABLED");
+  json["button4_output"] = dm4 != NULL && dm4->outputState ? String(dm4->dimLevel) : (dm4 == NULL || dm4->enabled ? "Off" : "DISABLED");
   json["button1_name"] = config.button1_name;
   json["button2_name"] = config.button2_name;
   json["button3_name"] = config.button3_name;
@@ -415,8 +425,10 @@ void sendButtonData(AsyncWebSocketClient * client) {
 // Handle data to and from index page via websockets
 void indexDataEventHandler(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
   if(type == WS_EVT_CONNECT){
+    LOG_INFO("New connection on /index_data");
     sendBaseData(client);
     sendButtonData(client);
+    LOG_INFO("New connection to /index_data handled");
   } else if(type == WS_EVT_ERROR){
     //error was received from the other end
     LOG_ERROR("INDEX_DATA_SOCKET error: ws[", server->url(), "][", client->id(), "] error(", *((uint16_t*)arg), "):", (char*)data);
@@ -438,64 +450,46 @@ void indexDataEventHandler(AsyncWebSocket * server, AsyncWebSocketClient * clien
         int dimmingTarget = doc["value"];
 
         if(buttonId.startsWith("button1")) {
-          if(dimmingTarget > 0) {
-            lMan.setOutputState(0, true);
-            lMan.setAutoDimmingTarget(0, dimmingTarget);
-          } else {
-            lMan.setOutputState(0, false);
+          DimmerButton *btn = lMan.getLightById(0);
+          if(btn) {
+            if(dimmingTarget > 0) {
+              lMan.setOutputState(btn, true);
+              lMan.setAutoDimmingTarget(btn, dimmingTarget);
+            } else {
+              lMan.setOutputState(btn, false);
+            }
           }
         } else if(buttonId.startsWith("button2")) {
-          if(dimmingTarget > 0) {
-            lMan.setOutputState(1, true);
-            lMan.setAutoDimmingTarget(1, dimmingTarget);
-          } else {
-            lMan.setOutputState(1, false);
+          DimmerButton *btn = lMan.getLightById(1);
+          if(btn) {
+            if(dimmingTarget > 0) {
+              lMan.setOutputState(btn, true);
+              lMan.setAutoDimmingTarget(btn, dimmingTarget);
+            } else {
+              lMan.setOutputState(btn, false);
+            }
           }
         } else if(buttonId.startsWith("button3")) {
-          if(dimmingTarget > 0) {
-            lMan.setOutputState(2, true);
-            lMan.setAutoDimmingTarget(2, dimmingTarget);
-          } else {
-            lMan.setOutputState(2, false);
+          DimmerButton *btn = lMan.getLightById(2);
+          if(btn) {
+            if(dimmingTarget > 0) {
+              lMan.setOutputState(btn, true);
+              lMan.setAutoDimmingTarget(btn, dimmingTarget);
+            } else {
+              lMan.setOutputState(btn, false);
+            }
           }
         } else if(buttonId.startsWith("button4")) {
-          if(dimmingTarget > 0) {
-            lMan.setOutputState(3, true);
-            lMan.setAutoDimmingTarget(3, dimmingTarget);
-          } else {
-            lMan.setOutputState(3, false);
+          DimmerButton *btn = lMan.getLightById(3);
+          if(btn) {
+            if(dimmingTarget > 0) {
+              lMan.setOutputState(btn, true);
+              lMan.setAutoDimmingTarget(btn, dimmingTarget);
+            } else {
+              lMan.setOutputState(btn, false);
+            }
           }
         }
-
-        // if(buttonId.startsWith("button1")) {
-        //   if(value > 0) {
-        //     dimmerButtons[0].setOutputState(true);
-        //     dimmerButtons[0].setDimmingTarget(value);
-        //   } else {
-        //     dimmerButtons[0].setOutputState(false);
-        //   }
-        // } else if(buttonId.startsWith("button2")) {
-        //   if(value > 0) {
-        //     dimmerButtons[1].setOutputState(true);
-        //     dimmerButtons[1].setDimmingTarget(value);
-        //   } else {
-        //     dimmerButtons[1].setOutputState(false);
-        //   }
-        // } else if(buttonId.startsWith("button3")) {
-        //   if(value > 0) {
-        //     dimmerButtons[2].setOutputState(true);
-        //     dimmerButtons[2].setDimmingTarget(value);
-        //   } else {
-        //     dimmerButtons[2].setOutputState(false);
-        //   }
-        // } else if(buttonId.startsWith("button4")) {
-        //   if(value > 0) {
-        //     dimmerButtons[3].setOutputState(true);
-        //     dimmerButtons[3].setDimmingTarget(value);
-        //   } else {
-        //     dimmerButtons[3].setOutputState(false);
-        //   }
-        // }
       }
     }
   }
@@ -683,14 +677,14 @@ void setupWebServer() {
 void registerMqttLights() {
   // // Once connected, publish an announcement...
   // // Register all enabled lights and subscribe to relevant topics
-  for(int i = 0; i < 4; i++) {
-    if(lMan.dimmerButtons[i].enabled) {
-      LOG_INFO("Registring MQTT light with name:", lMan.dimmerButtons[i].name);
+  for (std::list<DimmerButton>::iterator it = lMan.dimmerButtons.begin(); it != lMan.dimmerButtons.end(); ++it){
+    if(it->enabled) {
+      LOG_INFO("Registring MQTT light with name:", it->name);
       MQTTLight light;
-      light.name = lMan.dimmerButtons[i].name;
+      light.name = it->name;
       hamqtt.registerLight(light, &pubSubClient);
-      // Mark lights due for an MQTT status update.
-      lMan.dimmerButtons[i].sendMqttUpdate = true;
+      LOG_DEBUG("Marking all DimmerButtons due for MQTT status update.");
+      it->sendMqttUpdate = true;
     }
   }
 }
@@ -744,11 +738,14 @@ void mqtt_callback(MQTTLight light) {
     buttonIndex = 3;
   }
   if(buttonIndex >= 0) {
-    if(light.brightness > 0) {
-      lMan.setAutoDimmingTarget(buttonIndex, light.brightness);
-      lMan.setOutputState(buttonIndex, light.state);
-    } else {
-      lMan.setOutputState(buttonIndex, light.state);
+    DimmerButton *btn = lMan.getLightById(buttonIndex);
+    if(btn) {
+      if(light.brightness > 0) {
+        lMan.setAutoDimmingTarget(btn, light.brightness);
+        lMan.setOutputState(btn, light.state);
+      } else {
+        lMan.setOutputState(btn, light.state);
+      }
     }
   } else {
     LOG_ERROR("Unknown button", light.name.c_str());
@@ -848,29 +845,46 @@ void checkIfFactoryReset() {
 
 void setupDimmerButtons() {
   // Start buttons
-  lMan.initDimmerButton(0, BUTTON_1_PIN, config.button1_min, config.button1_max, config.button1_channel, config.button1_enabled, config.button1_name);
-  lMan.dimmerButtons[0].dimmingSpeed            = config.button1_dimmingSpeed;
-  lMan.dimmerButtons[0].holdPeriod              = config.button1_holdPeriod;
-  lMan.dimmerButtons[0].buttonMinPressThreshold = config.button1_minPressMillis;
-  lMan.dimmerButtons[0].buttonPressThreshold    = config.button1_maxPressMillis;
+  DimmerButton *btn;
+  if(config.button1_enabled) {
+    LOG_TRACE("Initializing DimmerButton[0]");
+    btn = lMan.initDimmerButton(0, BUTTON_1_PIN, config.button1_min, config.button1_max, config.button1_channel, config.button1_enabled, config.button1_name);
+    btn->dimmingSpeed            = config.button1_dimmingSpeed;
+    btn->autoDimmingSpeed        = config.button1_autoDimmingSpeed;
+    btn->holdPeriod              = config.button1_holdPeriod;
+    btn->buttonMinPressThreshold = config.button1_minPressMillis;
+    btn->buttonPressThreshold    = config.button1_maxPressMillis;
+  }
+  
+  if(config.button2_enabled) {
+    LOG_TRACE("Initializing DimmerButton[1]");
+    btn = lMan.initDimmerButton(1, BUTTON_2_PIN, config.button2_min, config.button2_max, config.button2_channel, config.button2_enabled, config.button2_name);
+    btn->dimmingSpeed            = config.button2_dimmingSpeed;
+    btn->autoDimmingSpeed        = config.button2_autoDimmingSpeed;
+    btn->holdPeriod              = config.button2_holdPeriod;
+    btn->buttonMinPressThreshold = config.button2_minPressMillis;
+    btn->buttonPressThreshold    = config.button2_maxPressMillis;
+  }
 
-  lMan.initDimmerButton(1, BUTTON_2_PIN, config.button2_min, config.button2_max, config.button2_channel, config.button2_enabled, config.button2_name);
-  lMan.dimmerButtons[1].dimmingSpeed            = config.button2_dimmingSpeed;
-  lMan.dimmerButtons[1].holdPeriod              = config.button2_holdPeriod;
-  lMan.dimmerButtons[1].buttonMinPressThreshold = config.button2_minPressMillis;
-  lMan.dimmerButtons[1].buttonPressThreshold    = config.button2_maxPressMillis;
+  if(config.button3_enabled) {
+    LOG_TRACE("Initializing DimmerButton[2]");
+    btn = lMan.initDimmerButton(2, BUTTON_3_PIN, config.button3_min, config.button3_max, config.button3_channel, config.button3_enabled, config.button3_name);
+    btn->dimmingSpeed            = config.button3_dimmingSpeed;
+    btn->autoDimmingSpeed        = config.button3_autoDimmingSpeed;
+    btn->holdPeriod              = config.button3_holdPeriod;
+    btn->buttonMinPressThreshold = config.button3_minPressMillis;
+    btn->buttonPressThreshold    = config.button3_maxPressMillis;
+  }
 
-  lMan.initDimmerButton(2, BUTTON_3_PIN, config.button3_min, config.button3_max, config.button3_channel, config.button3_enabled, config.button3_name);
-  lMan.dimmerButtons[2].dimmingSpeed            = config.button3_dimmingSpeed;
-  lMan.dimmerButtons[2].holdPeriod              = config.button3_holdPeriod;
-  lMan.dimmerButtons[2].buttonMinPressThreshold = config.button3_minPressMillis;
-  lMan.dimmerButtons[2].buttonPressThreshold    = config.button3_maxPressMillis;
-
-  lMan.initDimmerButton(3, BUTTON_4_PIN, config.button4_min, config.button4_max, config.button4_channel, config.button4_enabled, config.button4_name);
-  lMan.dimmerButtons[3].dimmingSpeed            = config.button4_dimmingSpeed;
-  lMan.dimmerButtons[3].holdPeriod              = config.button4_holdPeriod;
-  lMan.dimmerButtons[3].buttonMinPressThreshold = config.button4_minPressMillis;
-  lMan.dimmerButtons[3].buttonPressThreshold    = config.button4_maxPressMillis;
+  if(config.button4_enabled) {
+    LOG_TRACE("Initializing DimmerButton[3]");
+    btn = lMan.initDimmerButton(3, BUTTON_4_PIN, config.button4_min, config.button4_max, config.button4_channel, config.button4_enabled, config.button4_name);
+    btn->dimmingSpeed            = config.button4_dimmingSpeed;
+    btn->autoDimmingSpeed        = config.button4_autoDimmingSpeed;
+    btn->holdPeriod              = config.button4_holdPeriod;
+    btn->buttonMinPressThreshold = config.button4_minPressMillis;
+    btn->buttonPressThreshold    = config.button4_maxPressMillis;
+  }
 }
 
 // Go through the buttons that are enabled and check for the highest channel.
@@ -940,25 +954,26 @@ void loop() {
   lMan.loop();
 
   // Update state of all dimmer buttons
-  for(int i = 0; i < 4; i++) {
+  for (std::list<DimmerButton>::iterator it = lMan.dimmerButtons.begin(); it != lMan.dimmerButtons.end(); ++it){
     // Send MQTT and web socket status update if marked due and on interval.
-    if(lMan.dimmerButtons[i].sendMqttUpdate && millis() - lMan.dimmerButtons[i].lastDimEvent >= lMan.dimmerButtons[i].mqttSendWaitTime) {
+    if(it->sendMqttUpdate && millis() - it->lastDimEvent >= it->mqttSendWaitTime) {
       // Send MQTT Status Update
-      LOG_TRACE("Sending MQTT status update for dimmerButton[", i, "]");
+      LOG_TRACE("Sending MQTT status update for dimmerButton[", it->id, "]");
       MQTTLight sendLight;
-      sendLight.name = lMan.dimmerButtons[i].name;
-      sendLight.state = lMan.dimmerButtons[i].outputState;
-      sendLight.brightness = lMan.dimmerButtons[i].dimLevel;
+      sendLight.name = it->name;
+      sendLight.state = it->outputState;
+      sendLight.brightness = it->dimLevel;
       hamqtt.sendLightUpdate(sendLight, &pubSubClient);
       // Update when the last MQTT update was sent and remove mark for sending a new update.
-      lMan.dimmerButtons[i].sendMqttUpdate = false;
+      LOG_TRACE("Marking DimmerButton with ID", it->id, " with sendMqttUpdate = false;");
+      it->sendMqttUpdate = false;
 
       // Send status update to any connected web sockets
       char json_data[64];
-      if(lMan.dimmerButtons[i].outputState) {
-        sprintf(json_data, "{\"button%i_output\": %i}", i+1, lMan.dimmerButtons[i].dimLevel);
+      if(it->outputState) {
+        sprintf(json_data, "{\"button%i_output\": %i}", it->id + 1, it->dimLevel);
       } else {
-        sprintf(json_data, "{\"button%i_output\": \"Off\"}", i+1);
+        sprintf(json_data, "{\"button%i_output\": \"Off\"}", it->id + 1);
       }
       indexDataSocket.textAll(json_data);
     }
@@ -972,8 +987,9 @@ void loop() {
     // Wait for registration to complete and then send status update
     delay(1000);
     // Mark lights due for update.
-    for(int i = 0; i < 4; i++) {
-      lMan.dimmerButtons[i].sendMqttUpdate = true;
+    for (std::list<DimmerButton>::iterator it = lMan.dimmerButtons.begin(); it != lMan.dimmerButtons.end(); ++it){
+      LOG_DEBUG("Marking all DimmerButtons due for MQTT status update.");
+      it->sendMqttUpdate = true;
     }
     hamqtt.sendOnlineStatusUpdate(&pubSubClient);
     _triggerHomeAssistantOnlineUpdate = false;

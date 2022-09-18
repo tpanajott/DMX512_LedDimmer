@@ -2,6 +2,7 @@
 #define LIGHT_MANAGER_H
 
 #include <Arduino.h>
+#include <list>
 #include <ESPDMX.h>
 #include <PubSubClient.h>
 
@@ -11,12 +12,14 @@ struct _buttonEvent {
 };
 
 struct DimmerButton {
+    uint8_t id;
     uint8_t channel = 1;
     uint8 pin = 0;
     uint8 min = 0;
     uint8 max = 255;
     uint8 dimLevel = 255;
     uint8 autoDimTarget = 255;
+    uint8 autoDimmingSpeed = 1;
     uint8 debounce_ms = 50;
     unsigned long lastDimEvent = 0;
     uint8_t dimmingSpeed = 5;
@@ -47,14 +50,16 @@ struct DimmerButton {
 
 class LightManager {
     public:
-        DimmerButton dimmerButtons[4];
+        //DimmerButton dimmerButtons[4];
+        std::list<DimmerButton> dimmerButtons;
         void init(DMXESPSerial *dmx, PubSubClient *pubSubClient);
-        void initDimmerButton(uint8_t id, uint8_t pin, uint8_t min, uint8_t max, uint8_t channel, bool enabled, char *name);
+        DimmerButton* initDimmerButton(uint8_t id, uint8_t pin, uint8_t min, uint8_t max, uint8_t channel, bool enabled, char *name);
         void handleDimmerButtonEvent();
         void loop();
-        void setLightLevel(uint8_t buttonIndex, uint8_t dimLevel);
-        void setAutoDimmingTarget(uint8_t buttonIndex, uint8_t dimLevel);
-        void setOutputState(uint8_t buttonIndex, bool outputState);
+        void setLightLevel(DimmerButton *btn, uint8_t dimLevel);
+        void setAutoDimmingTarget(DimmerButton *btn, uint8_t dimLevel);
+        void setOutputState(DimmerButton *btn, bool outputState);
+        DimmerButton* getLightById(uint8_t id);
         // The following two items are for ISR handeling of button presses
         // Static pointer to instance of object
         static LightManager *instance;
@@ -63,11 +68,11 @@ class LightManager {
     private:
         DMXESPSerial *_dmx;
         PubSubClient *_pubSubClient;
-        void _updateDimmerButtonStatus(uint8_t buttonIndex);
-        void _performDimmingOfLight(uint8_t buttonIndex);
-        void _performAutoDimmingOfLight(uint8_t buttonIndex);
-        unsigned long _getButtonStateTimeDelta(uint8_t buttonIndex, uint8_t firstEventIndex, uint8_t secondEventIndex);
-        bool _getButtonState(uint8_t buttonIndex);
+        void _updateDimmerButtonStatus(DimmerButton *btn);
+        void _performDimmingOfLight(DimmerButton *btn);
+        void _performAutoDimmingOfLight(DimmerButton *btn);
+        unsigned long _getButtonStateTimeDelta(DimmerButton *btn, uint8_t firstEventIndex, uint8_t secondEventIndex);
+        bool _getButtonState(DimmerButton *btn);
 };
 
 #endif
