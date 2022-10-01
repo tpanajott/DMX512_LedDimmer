@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <HEAD>
     <TITLE>DMX Light Controller</TITLE>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,7 +8,7 @@
     <link rel="stylesheet" href="/static/background.css">
     <script src="/static/jquery.min.js"></script>
     <script src="/static/index_data.js"></script>
-    
+
     <style>
         .lds-dual-ring {
             display: inline-block;
@@ -31,6 +32,7 @@
             0% {
                 transform: rotate(0deg);
             }
+
             100% {
                 transform: rotate(360deg);
             }
@@ -41,6 +43,7 @@
         }
     </style>
 </HEAD>
+
 <body>
     <!-- Modal to show that connected to the device has been lost -->
     <div class="modal" id="not_connected_modal">
@@ -63,53 +66,53 @@
     <div class="modal" id="select_wifi_modal">
         <div class="modal-background" id="select_wifi_modal_close_background"></div>
         <div class="modal-card">
-          <header class="modal-card-head">
-            <p class="modal-card-title">Select network</p>
-            <button class="delete" aria-label="close" id="select_wifi_modal_close_button"></button>
-          </header>
-          <section class="modal-card-body">
-            <div id="wifi_wait_div">
-                <center>
-                    <div class="lds-dual-ring"></div>
-                    <br>
-                    Please wait, while fethcing available Wifi networks.
-                </center>
-            </div>
-            <div id="wifi_failed_to_get_networks">
-                <div class="notification is-danger">
-                    Failed to get a list of available networks!
+            <header class="modal-card-head">
+                <p class="modal-card-title">Select network</p>
+                <button class="delete" aria-label="close" id="select_wifi_modal_close_button"></button>
+            </header>
+            <section class="modal-card-body">
+                <div id="wifi_wait_div">
+                    <center>
+                        <div class="lds-dual-ring"></div>
+                        <br>
+                        Please wait, while fethcing available Wifi networks.
+                    </center>
                 </div>
-            </div>
-            <div id="wifi_no_networks_found">
-                <div class="notification is-danger">
-                    No networks found.
+                <div id="wifi_failed_to_get_networks">
+                    <div class="notification is-danger">
+                        Failed to get a list of available networks!
+                    </div>
                 </div>
-            </div>
-            <div id="available_wifi_networks">
-                <table class="table is-fullwidth">
-                    <thead>
-                      <tr>
-                        <th>SSID</th>
-                        <th>RSSI</th>
-                        <th>Channel</th>
-                        <th>Security</th>
-                      </tr>
-                    </thead>
-                    <tbody id="available_wifi_networks_tbody">
-                      <tr>
-                        <th>1</th>
-                        <td>2</td>
-                        <td>3</td>
-                      </tr>
-                    </tbody>
-                  </table>
-            </div>
-          </section>
-          <footer class="modal-card-foot">
-            <button class="button" id="select_wifi_modal_cancel_button">Cancel</button>
-          </footer>
+                <div id="wifi_no_networks_found">
+                    <div class="notification is-danger">
+                        No networks found.
+                    </div>
+                </div>
+                <div id="available_wifi_networks">
+                    <table class="table is-fullwidth">
+                        <thead>
+                            <tr>
+                                <th>SSID</th>
+                                <th>RSSI</th>
+                                <th>Channel</th>
+                                <th>Security</th>
+                            </tr>
+                        </thead>
+                        <tbody id="available_wifi_networks_tbody">
+                            <tr>
+                                <th>1</th>
+                                <td>2</td>
+                                <td>3</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <footer class="modal-card-foot">
+                <button class="button" id="select_wifi_modal_cancel_button">Cancel</button>
+            </footer>
         </div>
-      </div>
+    </div>
 
     <!-- Modal to confirm factory reset -->
     <div class="modal" id="factory_reset_modal">
@@ -150,13 +153,30 @@
                     <h5 class="title is-5">General</h5>
                     <label class="label">Device name</label>
                     <div class="control">
-                        <input class="input" type="text" name="wifi_hostname" id="wifi_hostname" placeholder="Device name" required>
+                        <input class="input" type="text" name="wifi_hostname" id="wifi_hostname"
+                            placeholder="Device name" required>
                     </div>
                 </div>
                 <div class="field">
                     <label class="label">Home Assistant online wait period in milliseconds</label>
                     <div class="control">
-                        <input class="input" type="number" name="home_assistant_online_wait_period_ms" id="home_assistant_online_wait_period_ms" placeholder="Home Assistant wait period" required>
+                        <input class="input" type="number" name="home_assistant_online_wait_period_ms"
+                            id="home_assistant_online_wait_period_ms" placeholder="Home Assistant wait period" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">Serial log level</label>
+                    <div class="control">
+                        <div class="select">
+                            <select name="log_level" id="log_level">
+                                <option value="0">None</option>
+                                <option value="1">Error</option>
+                                <option value="2">Warning</option>
+                                <option value="3">Info</option>
+                                <option value="4">Debug</option>
+                                <option value="5">Trace</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -179,13 +199,15 @@
                 <div class="field">
                     <label class="label">WiFi Password</label>
                     <div class="control">
-                        <input class="input" type="password" name="wifi_psk" id="wifi_psk" placeholder="Password" required>
+                        <input class="input" type="password" name="wifi_psk" id="wifi_psk" placeholder="Password"
+                            required>
                     </div>
                 </div>
                 <div class="field">
                     <label class="label">WiFi retry timeout in milliseconds</label>
                     <div class="control">
-                        <input class="input" type="number" name="wifi_retry_timeout_ms" id="wifi_retry_timeout_ms" placeholder="WiFi retry timeout" required>
+                        <input class="input" type="number" name="wifi_retry_timeout_ms" id="wifi_retry_timeout_ms"
+                            placeholder="WiFi retry timeout" required>
                     </div>
                 </div>
             </div>
@@ -197,13 +219,14 @@
                         <div class="field is-grouped is-grouped-multiline">
                             <div class="control">
                                 <div class="tags has-addons">
-                                <span class="tag is-dark">Current Output</span>
-                                <span class="tag is-info" id="button1_output"></span>
+                                    <span class="tag is-dark">Current Output</span>
+                                    <span class="tag is-info" id="button1_output"></span>
                                 </div>
                             </div>
                         </div>
                         <div class="field">
-                            <input type="range" min="0" max="255" value="0" id="button1_output_slider" onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                            <input type="range" min="0" max="255" value="0" id="button1_output_slider"
+                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
                         </div>
                         <div class="field">
                             <label class="checkbox">
@@ -220,49 +243,57 @@
                         <div class="field">
                             <label class="label">Channel</label>
                             <div class="control">
-                                <input class="input" type="number" name="button1_channel" id="button1_channel" min="1" max="15" required>
+                                <input class="input" type="number" name="button1_channel" id="button1_channel" min="1"
+                                    max="15" required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Maximum Level:</label>
                             <div class="control">
-                                <input class="input" type="number" name="button1_max" id="button1_max" min=1 max=255 required>
+                                <input class="input" type="number" name="button1_max" id="button1_max" min=1 max=255
+                                    required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Minimum Level:</label>
                             <div class="control">
-                                <input class="input" type="number" name="button1_min" id="button1_min" min=1 max=255 required>
+                                <input class="input" type="number" name="button1_min" id="button1_min" min=1 max=255
+                                    required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Dimming speed</label>
                             <div class="control">
-                                <input class="input" type="number" name="button1_dimmingSpeed" id="button1_dimmingSpeed" min=5 max=25 required>
+                                <input class="input" type="number" name="button1_dimmingSpeed" id="button1_dimmingSpeed"
+                                    min=5 max=25 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Auto-Dimming speed</label>
                             <div class="control">
-                                <input class="input" type="number" name="button1_autoDimmingSpeed" id="button1_autoDimmingSpeed" min=0 max=15 required>
+                                <input class="input" type="number" name="button1_autoDimmingSpeed"
+                                    id="button1_autoDimmingSpeed" min=0 max=15 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Hold Period</label>
                             <div class="control">
-                                <input class="input" type="number" name="button1_holdPeriod" id="button1_holdPeriod" min=0 max=1500 required>
+                                <input class="input" type="number" name="button1_holdPeriod" id="button1_holdPeriod"
+                                    min=0 max=1500 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Min button hold period (ms)</label>
                             <div class="control">
-                                <input class="input" type="number" name="button1_minPressMillis" id="button1_minPressMillis" min=0 max=150 required>
+                                <input class="input" type="number" name="button1_minPressMillis"
+                                    id="button1_minPressMillis" min=0 max=150 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Max button hold period (ms)</label>
                             <div class="control">
-                                <input class="input" type="number" name="button1_maxPressMillis" id="button1_maxPressMillis" min=0 max=1500 required>
+                                <input class="input" type="number" name="button1_maxPressMillis"
+                                    id="button1_maxPressMillis" min=0 max=1500 required>
                             </div>
                         </div>
                     </div>
@@ -271,13 +302,14 @@
                         <div class="field is-grouped is-grouped-multiline">
                             <div class="control">
                                 <div class="tags has-addons">
-                                <span class="tag is-dark">Current Output</span>
-                                <span class="tag is-info" id="button2_output"></span>
+                                    <span class="tag is-dark">Current Output</span>
+                                    <span class="tag is-info" id="button2_output"></span>
                                 </div>
                             </div>
                         </div>
                         <div class="field">
-                            <input type="range" min="0" max="255" value="0" id="button2_output_slider" onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                            <input type="range" min="0" max="255" value="0" id="button2_output_slider"
+                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
                         </div>
                         <div class="field">
                             <label class="checkbox">
@@ -294,49 +326,57 @@
                         <div class="field">
                             <label class="label">Channel</label>
                             <div class="control">
-                                <input class="input" type="number" name="button2_channel" id="button2_channel" min="1" max="15" required>
+                                <input class="input" type="number" name="button2_channel" id="button2_channel" min="1"
+                                    max="15" required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Maximum Level:</label>
                             <div class="control">
-                                <input class="input" type="number" name="button2_max" id="button2_max" min=1 max=255 required>
+                                <input class="input" type="number" name="button2_max" id="button2_max" min=1 max=255
+                                    required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Minimum Level:</label>
                             <div class="control">
-                                <input class="input" type="number" name="button2_min" id="button2_min" min=1 max=255 required>
+                                <input class="input" type="number" name="button2_min" id="button2_min" min=1 max=255
+                                    required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Dimming speed</label>
                             <div class="control">
-                                <input class="input" type="number" name="button2_dimmingSpeed" id="button2_dimmingSpeed" min=5 max=25 required>
+                                <input class="input" type="number" name="button2_dimmingSpeed" id="button2_dimmingSpeed"
+                                    min=5 max=25 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Auto-Dimming speed</label>
                             <div class="control">
-                                <input class="input" type="number" name="button2_autoDimmingSpeed" id="button2_autoDimmingSpeed" min=0 max=15 required>
+                                <input class="input" type="number" name="button2_autoDimmingSpeed"
+                                    id="button2_autoDimmingSpeed" min=0 max=15 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Hold Period</label>
                             <div class="control">
-                                <input class="input" type="number" name="button2_holdPeriod" id="button2_holdPeriod" min=0 max=1500 required>
+                                <input class="input" type="number" name="button2_holdPeriod" id="button2_holdPeriod"
+                                    min=0 max=1500 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Min button hold period (ms)</label>
                             <div class="control">
-                                <input class="input" type="number" name="button2_minPressMillis" id="button2_minPressMillis" min=0 max=150 required>
+                                <input class="input" type="number" name="button2_minPressMillis"
+                                    id="button2_minPressMillis" min=0 max=150 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Max button hold period (ms)</label>
                             <div class="control">
-                                <input class="input" type="number" name="button2_maxPressMillis" id="button2_maxPressMillis" min=0 max=1500 required>
+                                <input class="input" type="number" name="button2_maxPressMillis"
+                                    id="button2_maxPressMillis" min=0 max=1500 required>
                             </div>
                         </div>
                     </div>
@@ -345,13 +385,14 @@
                         <div class="field is-grouped is-grouped-multiline">
                             <div class="control">
                                 <div class="tags has-addons">
-                                <span class="tag is-dark">Current Output</span>
-                                <span class="tag is-info" id="button3_output"></span>
+                                    <span class="tag is-dark">Current Output</span>
+                                    <span class="tag is-info" id="button3_output"></span>
                                 </div>
                             </div>
                         </div>
                         <div class="field">
-                            <input type="range" min="0" max="255" value="0" id="button3_output_slider" onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                            <input type="range" min="0" max="255" value="0" id="button3_output_slider"
+                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
                         </div>
                         <div class="field">
                             <label class="checkbox">
@@ -368,49 +409,57 @@
                         <div class="field">
                             <label class="label">Channel</label>
                             <div class="control">
-                                <input class="input" type="number" name="button3_channel" id="button3_channel" min="1" max="15" required>
+                                <input class="input" type="number" name="button3_channel" id="button3_channel" min="1"
+                                    max="15" required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Maximum Level:</label>
                             <div class="control">
-                                <input class="input" type="number" name="button3_max" id="button3_max" min=1 max=255 required>
+                                <input class="input" type="number" name="button3_max" id="button3_max" min=1 max=255
+                                    required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Minimum Level:</label>
                             <div class="control">
-                                <input class="input" type="number" name="button3_min" id="button3_min" min=1 max=255 required>
+                                <input class="input" type="number" name="button3_min" id="button3_min" min=1 max=255
+                                    required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Dimming speed</label>
                             <div class="control">
-                                <input class="input" type="number" name="button3_dimmingSpeed" id="button3_dimmingSpeed" min=5 max=25 required>
+                                <input class="input" type="number" name="button3_dimmingSpeed" id="button3_dimmingSpeed"
+                                    min=5 max=25 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Auto-Dimming speed</label>
                             <div class="control">
-                                <input class="input" type="number" name="button3_autoDimmingSpeed" id="button3_autoDimmingSpeed" min=0 max=15 required>
+                                <input class="input" type="number" name="button3_autoDimmingSpeed"
+                                    id="button3_autoDimmingSpeed" min=0 max=15 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Hold Period</label>
                             <div class="control">
-                                <input class="input" type="number" name="button3_holdPeriod" id="button3_holdPeriod" min=0 max=1500 required>
+                                <input class="input" type="number" name="button3_holdPeriod" id="button3_holdPeriod"
+                                    min=0 max=1500 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Min button hold period (ms)</label>
                             <div class="control">
-                                <input class="input" type="number" name="button3_minPressMillis" id="button3_minPressMillis" min=0 max=150 required>
+                                <input class="input" type="number" name="button3_minPressMillis"
+                                    id="button3_minPressMillis" min=0 max=150 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Max button hold period (ms)</label>
                             <div class="control">
-                                <input class="input" type="number" name="button3_maxPressMillis" id="button3_maxPressMillis" min=0 max=1500 required>
+                                <input class="input" type="number" name="button3_maxPressMillis"
+                                    id="button3_maxPressMillis" min=0 max=1500 required>
                             </div>
                         </div>
                     </div>
@@ -419,13 +468,14 @@
                         <div class="field is-grouped is-grouped-multiline">
                             <div class="control">
                                 <div class="tags has-addons">
-                                <span class="tag is-dark">Current Output</span>
-                                <span class="tag is-info" id="button4_output"></span>
+                                    <span class="tag is-dark">Current Output</span>
+                                    <span class="tag is-info" id="button4_output"></span>
                                 </div>
                             </div>
                         </div>
                         <div class="field">
-                            <input type="range" min="0" max="255" value="0" id="button4_output_slider" onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                            <input type="range" min="0" max="255" value="0" id="button4_output_slider"
+                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
                         </div>
                         <div class="field">
                             <label class="checkbox">
@@ -442,49 +492,57 @@
                         <div class="field">
                             <label class="label">Channel</label>
                             <div class="control">
-                                <input class="input" type="number" name="button4_channel" id="button4_channel" min="1" max="15" required>
+                                <input class="input" type="number" name="button4_channel" id="button4_channel" min="1"
+                                    max="15" required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Maximum Level:</label>
                             <div class="control">
-                                <input class="input" type="number" name="button4_max" id="button4_max" min=1 max=255 required>
+                                <input class="input" type="number" name="button4_max" id="button4_max" min=1 max=255
+                                    required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Minimum Level:</label>
                             <div class="control">
-                                <input class="input" type="number" name="button4_min" id="button4_min" min=1 max=255 required>
+                                <input class="input" type="number" name="button4_min" id="button4_min" min=1 max=255
+                                    required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Dimming speed</label>
                             <div class="control">
-                                <input class="input" type="number" name="button4_dimmingSpeed" id="button4_dimmingSpeed" min=5 max=25 required>
+                                <input class="input" type="number" name="button4_dimmingSpeed" id="button4_dimmingSpeed"
+                                    min=5 max=25 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Auto-Dimming speed</label>
                             <div class="control">
-                                <input class="input" type="number" name="button4_autoDimmingSpeed" id="button4_autoDimmingSpeed" min=0 max=15 required>
+                                <input class="input" type="number" name="button4_autoDimmingSpeed"
+                                    id="button4_autoDimmingSpeed" min=0 max=15 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Hold Period</label>
                             <div class="control">
-                                <input class="input" type="number" name="button4_holdPeriod" id="button4_holdPeriod" min=0 max=1500 required>
+                                <input class="input" type="number" name="button4_holdPeriod" id="button4_holdPeriod"
+                                    min=0 max=1500 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Min button hold period (ms)</label>
                             <div class="control">
-                                <input class="input" type="number" name="button4_minPressMillis" id="button4_minPressMillis" min=0 max=150 required>
+                                <input class="input" type="number" name="button4_minPressMillis"
+                                    id="button4_minPressMillis" min=0 max=150 required>
                             </div>
                         </div>
                         <div class="field">
                             <label class="label">Max button hold period (ms)</label>
                             <div class="control">
-                                <input class="input" type="number" name="button4_maxPressMillis" id="button4_maxPressMillis" min=0 max=1500 required>
+                                <input class="input" type="number" name="button4_maxPressMillis"
+                                    id="button4_maxPressMillis" min=0 max=1500 required>
                             </div>
                         </div>
                     </div>
@@ -497,14 +555,14 @@
                     <div class="field is-grouped is-grouped-multiline">
                         <div class="control">
                             <div class="tags has-addons">
-                            <span class="tag is-dark">MQTT Status</span>
-                            <span class="tag is-info" id="mqtt_status"></span>
+                                <span class="tag is-dark">MQTT Status</span>
+                                <span class="tag is-info" id="mqtt_status"></span>
                             </div>
                         </div>
                         <div class="control">
                             <div class="tags has-addons">
-                            <span class="tag is-dark">Home Assistant Status</span>
-                            <span class="tag is-info" id="home_assistant_status"></span>
+                                <span class="tag is-dark">Home Assistant Status</span>
+                                <span class="tag is-info" id="home_assistant_status"></span>
                             </div>
                         </div>
                     </div>
@@ -512,19 +570,22 @@
                 <div class="field">
                     <label class="label">MQTT Server</label>
                     <div class="control">
-                        <input class="input" type="text" name="mqtt_server" id="mqtt_server" placeholder="MQTT Server" required>
+                        <input class="input" type="text" name="mqtt_server" id="mqtt_server" placeholder="MQTT Server"
+                            required>
                     </div>
                 </div>
                 <div class="field">
                     <label class="label">MQTT Port</label>
                     <div class="control">
-                        <input class="input" type="number" name="mqtt_port" id="mqtt_port" placeholder="MQTT Port" required>
+                        <input class="input" type="number" name="mqtt_port" id="mqtt_port" placeholder="MQTT Port"
+                            required>
                     </div>
                 </div>
                 <div class="field">
                     <label class="label">MQTT Base Topic</label>
                     <div class="control">
-                        <input class="input" type="text" name="mqtt_base_topic" id="mqtt_base_topic" placeholder="MQTT Topic" required>
+                        <input class="input" type="text" name="mqtt_base_topic" id="mqtt_base_topic"
+                            placeholder="MQTT Topic" required>
                     </div>
                 </div>
                 <div class="field">
@@ -536,7 +597,8 @@
                 <div class="field" id="mqtt_username_field">
                     <label class="label">MQTT Username</label>
                     <div class="control">
-                        <input class="input" type="text" name="mqtt_username" id="mqtt_username" placeholder="MQTT Username">
+                        <input class="input" type="text" name="mqtt_username" id="mqtt_username"
+                            placeholder="MQTT Username">
                     </div>
                 </div>
                 <div class="field" id="mqtt_psk_field">
@@ -565,4 +627,5 @@
         </form>
     </div>
 </body>
+
 </HTML>
