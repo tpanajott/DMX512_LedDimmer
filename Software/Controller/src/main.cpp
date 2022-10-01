@@ -912,7 +912,8 @@ int getHighestDMXChannelInUse() {
     ret = config.button4_channel;
   }
 
-  return ret;
+  // Value + 1 is requiered for DMX library.
+  return ret + 1;
 }
 
 // Setup has to be on bottom to be able to reference stuff from above
@@ -955,9 +956,6 @@ void setup() {
 
   hamqtt.begin(&mqtt_callback, config.mqtt_base_topic, config.wifi_hostname);
   LOG_INFO("Setup done. Start loop.");
-
-  // TODO: Remove before final release.
-  pinMode(D1, OUTPUT);
 }
 
 // TODO: Remove before final release.
@@ -1027,11 +1025,4 @@ void loop() {
 
   // Send out DMX data update on the bus.
   dmx.update();
-
-  // TODO: Remove before final release.
-  if(dmx.read(1) != lastDimLevel) {
-    lastDimLevel = dmx.read(1);
-    analogWrite(D1, lastDimLevel); 
-    // LOG_DEBUG("New Dim Level:", lastDimLevel);
-  }
 }
