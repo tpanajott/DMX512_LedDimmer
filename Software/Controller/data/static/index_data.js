@@ -47,6 +47,8 @@ function connectWebSocket() {
                     $("#home_assistant_connection_error").removeClass("hidden");
                     $("#home_assistant_status").prop("class", "tag is-danger");
                 }
+            } else if (index == "log_level") {
+                $("#log_level").val(value).change();
             } else {
                 if($(`#${index}`).length) {
                     $(`#${index}`).val(value);

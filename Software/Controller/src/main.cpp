@@ -26,6 +26,7 @@ struct structConfig {
   bool mqtt_auth;
   char mqtt_username[64];
   char mqtt_psk[64];
+  uint8_t log_level;
 
   char button1_name[64];
   char button2_name[64];
@@ -243,11 +244,15 @@ bool loadConfig() {
   config.button2_enabled = doc["button2_enabled"] | false;
   config.button3_enabled = doc["button3_enabled"] | false;
   config.button4_enabled = doc["button4_enabled"] | false;
+  config.log_level = doc["log_level"].as<uint8_t>();
 
   // Misc values
   config.home_assistant_online_wait_period_ms = doc["home_assistant_online_wait_period_ms"] | 30000;
-
   LOG_INFO("Configuration loaded.");
+
+  LOG_INFO("Setting logging level to", config.log_level);
+  LOG_SET_LEVEL(static_cast<DebugLogLevel>(config.log_level));
+
   return true;
 }
 
@@ -319,6 +324,7 @@ void saveConfigFromWeb(AsyncWebServerRequest *request) {
   json["button2_enabled"] = request->hasArg("button2_enabled");
   json["button3_enabled"] = request->hasArg("button3_enabled");
   json["button4_enabled"] = request->hasArg("button4_enabled");
+  json["log_level"] = request->arg("log_level").toInt();
 
   if(serializeJson(json, config_file) == 0) {
     LOG_ERROR("Failed to save config file.");
@@ -348,6 +354,7 @@ void sendBaseData(AsyncWebSocketClient * client) {
   json["mqtt_psk"] = config.mqtt_psk;
   json["mqtt_base_topic"] = config.mqtt_base_topic;
   json["mqtt_status"] = pubSubClient.connected() ? "Connected" : "DISCONNECTED";
+  json["log_level"] = config.log_level;
 
   LOG_TRACE("Serializing indexData BaseData");
   char json_data[1024];
@@ -914,6 +921,7 @@ void setup() {
 
   Serial.begin(115200);
   LOG_SET_LEVEL(DebugLogLevel::LVL_DEBUG);
+  LOG_INFO("Log level set to DEBUG for boot. This may be changed later when loading config.");
 
   if(initLittleFS()) {
     checkIfFactoryReset(); // Check if button for factory reset is being held
