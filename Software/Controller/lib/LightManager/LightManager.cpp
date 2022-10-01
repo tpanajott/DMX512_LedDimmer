@@ -1,6 +1,6 @@
 #include <LightManager.h>
-#include <DebugLog.h>
 #include <iterator>
+#include <ArduLog.h>
 
 LightManager *LightManager::instance; // Give somewhere in ram for instance to exist
 
@@ -136,10 +136,10 @@ void LightManager::_performDimmingOfLight(DimmerButton *btn) {
                 btn->lastDimEvent = millis();
                 
                 LOG_DEBUG("dimmerButton[", btn->id, "] hold period expiered.");
-                LOG_DEBUG("dimmerButton[", btn->id, "] Direction", btn->direction ? "UP" : "DOWN");
-                LOG_DEBUG("dimmerButton[", btn->id, "] Min", btn->min);
-                LOG_DEBUG("dimmerButton[", btn->id, "] Max", btn->max);
-                LOG_DEBUG("dimmerButton[", btn->id, "] Level", btn->dimLevel);
+                LOG_DEBUG("dimmerButton[", btn->id, "] Direction ", btn->direction ? "UP" : "DOWN");
+                LOG_DEBUG("dimmerButton[", btn->id, "] Min ", btn->min);
+                LOG_DEBUG("dimmerButton[", btn->id, "] Max ", btn->max);
+                LOG_DEBUG("dimmerButton[", btn->id, "] Level ", btn->dimLevel);
             }
         }
     }
@@ -210,16 +210,6 @@ void LightManager::setAutoDimmingTarget(DimmerButton *btn, uint8_t dimLevel) {
 }
 
 void LightManager::setOutputState(DimmerButton *btn, bool outputState) {
-    // TODO: Make slowly turn on/off
-    //btn->outputState = outputState;
-    
-    // // Update DMX data.
-    // if(outputState) {
-    //     this->_dmx->write(btn->channel, btn->dimLevel);
-    // } else {
-    //     this->_dmx->write(btn->channel, 0);
-    // }
-
     if(btn->outputState && !outputState) {
         LOG_DEBUG("Setting SmoothOff on DimmerButton");
         btn->dimLevelBeforeSmoothOff = btn->dimLevel;
@@ -254,17 +244,17 @@ void LightManager::_performSmoothOff(DimmerButton *btn) {
 // Try to find a DimmerButton with a given ID.
 // If none is found, NULL is returned.
 DimmerButton* LightManager::getLightById(uint8_t id) {
-    LOG_TRACE("Trying to find a DimmerButton with ID", id);
+    LOG_TRACE("Trying to find a DimmerButton with ID ", id);
     // Loop through all elements via iterator
     for (std::list<DimmerButton>::iterator it = this->dimmerButtons.begin(); it != this->dimmerButtons.end(); ++it){
-        LOG_TRACE("Foud DimmerButton with ID", (*it).id);
+        LOG_TRACE("Foud DimmerButton with ID ", (*it).id);
         if((*it).id == id) {
-            LOG_TRACE("Foud matching DimmerButton with ID", id);
+            LOG_TRACE("Foud matching DimmerButton with ID ", id);
             return &(*it);
         }
     }
 
-    LOG_ERROR("Did not find a matching DimmerButton with ID", id);
+    LOG_ERROR("Did not find a matching DimmerButton with ID ", id);
     return NULL;
 }
 

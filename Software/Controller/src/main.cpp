@@ -1,6 +1,5 @@
 #include <pins.h>
 #include <Arduino.h>
-#include <DebugLog.h>
 #include <ArduinoOTA.h>
 #include <ESPDMX.h>
 #include <ESP8266WiFi.h>
@@ -13,6 +12,7 @@
 // #include <DimmerButton.h>
 #include <LightManager.h>
 #include <HAMqtt.h>
+#include <ArduLog.h>
 
 struct structConfig {
   char wifi_hostname[64];
@@ -71,6 +71,7 @@ struct structConfig {
 };
 // Configuration object to easily access all configuration values
 structConfig config;
+ArduLog logger;
 // Wifi variables
 unsigned long lastWiFiCheckMillis = 0;
 bool lastWiFiCheckStatus = false;
@@ -117,7 +118,7 @@ void setupWiFi() {
 
         LOG_INFO("WiFi SSID: Light Controller");
         LOG_INFO("WiFi PSK : password");
-        LOG_INFO("WiFi IP Address:", WiFi.softAPIP().toString().c_str());
+        LOG_INFO("WiFi IP Address: ", WiFi.softAPIP().toString().c_str());
       } else {
         LOG_ERROR("Failed to start Soft-AP!");
       }
@@ -135,14 +136,14 @@ void taskWiFiManager() {
       if(WiFi.status() != WL_CONNECTED) {
         LOG_INFO("Trying to connect to WiFi", config.wifi_ssid);
       } else if(WiFi.status() == WL_CONNECTED && !lastWiFiCheckStatus) {
-        LOG_INFO("WiFi Connected to ", config.wifi_ssid, " as", config.wifi_hostname);
-        LOG_INFO("WiFi IP Address :", WiFi.localIP().toString().c_str());
-        LOG_INFO("WiFi Subnet Mask:", WiFi.subnetMask().toString().c_str());
-        LOG_INFO("WiFi MAC Address:", WiFi.macAddress().c_str());
-        LOG_INFO("WiFi Gateway    :", WiFi.gatewayIP().toString().c_str());
-        LOG_INFO("WiFi DNS        :", WiFi.dnsIP().toString().c_str());
-        LOG_INFO("WiFi RSSI       :", WiFi.RSSI());
-        LOG_INFO("WiFi SSID       :", WiFi.SSID().c_str());
+        LOG_INFO("WiFi Connected to ", config.wifi_ssid, " as ", config.wifi_hostname);
+        LOG_INFO("WiFi IP Address : ", WiFi.localIP().toString().c_str());
+        LOG_INFO("WiFi Subnet Mask: ", WiFi.subnetMask().toString().c_str());
+        LOG_INFO("WiFi MAC Address: ", WiFi.macAddress().c_str());
+        LOG_INFO("WiFi Gateway    : ", WiFi.gatewayIP().toString().c_str());
+        LOG_INFO("WiFi DNS        : ", WiFi.dnsIP().toString().c_str());
+        LOG_INFO("WiFi RSSI       : ", WiFi.RSSI());
+        LOG_INFO("WiFi SSID       : ", WiFi.SSID().c_str());
       }
       lastWiFiCheckMillis = millis();
       lastWiFiCheckStatus = (WiFi.status() == WL_CONNECTED);
@@ -250,8 +251,8 @@ bool loadConfig() {
   config.home_assistant_online_wait_period_ms = doc["home_assistant_online_wait_period_ms"] | 30000;
   LOG_INFO("Configuration loaded.");
 
-  LOG_INFO("Setting logging level to", config.log_level);
-  LOG_SET_LEVEL(static_cast<DebugLogLevel>(config.log_level));
+  LOG_INFO("Setting logging level to ", config.log_level);
+  logger.SetLogLevel(static_cast<ArduLogLevel>(config.log_level));
 
   return true;
 }
@@ -686,7 +687,7 @@ void registerMqttLights() {
   // // Register all enabled lights and subscribe to relevant topics
   for (std::list<DimmerButton>::iterator it = lMan.dimmerButtons.begin(); it != lMan.dimmerButtons.end(); ++it){
     if(it->enabled) {
-      LOG_INFO("Registring MQTT light with name:", it->name);
+      LOG_INFO("Registring MQTT light with name: ", it->name);
       MQTTLight light;
       light.name = it->name;
       hamqtt.registerLight(light, &pubSubClient);
@@ -919,8 +920,11 @@ void setup() {
   pinMode(FACTORY_RESET_PIN, INPUT);
   pinMode(STATUS_LED_PIN, OUTPUT);
 
+  // Initialize and setup logging
   Serial.begin(115200);
-  LOG_SET_LEVEL(DebugLogLevel::LVL_DEBUG);
+  logger.init();
+  logger.SetSerial(&Serial);
+  logger.SetLogLevel(ArduLogLevel::Debug);
   LOG_INFO("Log level set to DEBUG for boot. This may be changed later when loading config.");
 
   if(initLittleFS()) {
@@ -975,7 +979,7 @@ void loop() {
       sendLight.brightness = it->dimLevel;
       hamqtt.sendLightUpdate(sendLight, &pubSubClient);
       // Update when the last MQTT update was sent and remove mark for sending a new update.
-      LOG_TRACE("Marking DimmerButton with ID", it->id, " with sendMqttUpdate = false;");
+      LOG_TRACE("Marking DimmerButton with ID ", it->id, " with sendMqttUpdate = false;");
       it->sendMqttUpdate = false;
 
       // Send status update to any connected web sockets
