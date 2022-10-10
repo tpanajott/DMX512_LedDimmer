@@ -273,6 +273,7 @@ void LightManager::_taskDimLights(void *param)
         }
         // Update dim level.
         DMXChannel *channel = it->dmxChannel;
+        channel->stopAutoDimming(); // Stop auto-dimming if it is currently happening
         if (channel->level != channel->config->min && channel->level != channel->config->max && millis() - channel->lastLevelChange >= channel->config->dimmingSpeed)
         {
           // We are not at min/max and have reached time for a new dim event.
