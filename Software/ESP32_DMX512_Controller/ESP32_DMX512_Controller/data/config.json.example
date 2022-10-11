@@ -2,12 +2,13 @@
     "wifi_hostname": "lman1",
     "wifi_ssid": "WiFI SSID",
     "wifi_psk": "Password",
-    "wifi_retry_timeout_ms": 10000,
     "home_assistant_wait_online_ms": 30000,
     "mqtt_server": "address to mqtt",
     "mqtt_port": 1883,
     "mqtt_username": "",
     "mqtt_password": "",
+    "buttonPressMinTime": 80,
+    "buttonPressMaxTime": 800,
     "channels": [
         {
             "channel": 1,

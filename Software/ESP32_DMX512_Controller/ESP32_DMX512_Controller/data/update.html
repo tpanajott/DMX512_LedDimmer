@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<HEAD>
+    <TITLE>DMX Light Controller - Update</TITLE>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="/static/bulma.min.css">
+    <link rel="stylesheet" href="/static/background.css">
+    <script src="/static/jquery.min.js"></script>
+    <script src="/static/update.js"></script>
+    
+    <style>
+        .lds-dual-ring {
+            display: inline-block;
+            width: 80px;
+            height: 80px;
+        }
+
+        .lds-dual-ring:after {
+            content: " ";
+            display: block;
+            width: 64px;
+            height: 64px;
+            margin: 8px;
+            border-radius: 50%;
+            border: 6px solid #ccc;
+            border-color: #ccc transparent #ccc transparent;
+            animation: lds-dual-ring 1.2s linear infinite;
+        }
+
+        @keyframes lds-dual-ring {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</HEAD>
+<body>
+    <!-- Modal to show that connected to the device has been lost -->
+    <div class="modal" id="firmware_update_modal">
+        <div class="modal-background"></div>
+        <div class="modal-card">
+            <header class="modal-card-head">
+                <p class="modal-card-title">Updating</p>
+            </header>
+            <section class="modal-card-body">
+                <div class="notification is-danger" id="update_error">
+                    Something went wrong while updating!<br>
+                    <p id="update_error_text"></p>
+                </div>
+                <div id="update_progress">
+                    <center>
+                        <progress class="progress is-info" id="firmware_update_progress" value="0" max="100">0%</progress>
+                        Please wait while the update is installing.
+                    </center>
+                </div>
+            </section>
+            <footer class="modal-card-foot"></footer>
+        </div>
+    </div>
+   
+    <section class="section">
+        <div class="container">
+            <h1 class="title">
+                DMX Light Controller
+            </h1>
+            <h2 class="subtitle">
+                Firmware Update
+            </h2>
+        </div>
+    </section>
+
+    <div class="container">
+        <form method="POST" id="firmware_spiffs_upload_form" enctype="multipart/form-data">
+            <div class="box">
+                <div class="field">
+                    <h5 class="title is-5">Files</h5>
+                </div>
+                <div class="field">
+                    <div class="file has-name is-fullwidth">
+                        <label class="file-label">
+                            <input class="file-input" type="file" name="firmware_file" id="firmware_file" accept=".bin" required>
+                            <span class="file-cta">
+                                <span class="file-icon">
+                                    <svg style="width:24px;height:24px" viewBox="4 4 16 16">
+                                        <path fill="currentColor" d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" />
+                                    </svg>
+                                </span>
+                                <span class="file-label">Choose firmware file…</span>
+                            </span>
+                            <span class="file-name" id="firmware_file_name"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="file has-name is-fullwidth">
+                        <label class="file-label">
+                            <input class="file-input" type="file" name="spiffs_file" id="spiffs_file" accept=".bin" required>
+                            <span class="file-cta">
+                                <span class="file-icon">
+                                    <svg style="width:24px;height:24px" viewBox="4 4 16 16">
+                                        <path fill="currentColor" d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" />
+                                    </svg>
+                                </span>
+                                <span class="file-label">Choose LittleFS file…</span>
+                            </span>
+                            <span class="file-name" id="spiffs_file_name"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="buttons is-right">
+                <a class="button is-link" href="/">Back</a>
+                <button class="button is-success" type="submit" id="save_button">Update</button>
+            </div>
+        </form>
+    </div>
+</body>
+</HTML>

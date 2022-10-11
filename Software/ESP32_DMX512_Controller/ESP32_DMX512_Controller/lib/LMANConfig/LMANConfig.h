@@ -64,6 +64,11 @@ public:
     /// @brief MQTT Password
     std::string mqtt_password;
 
+    /// @brief The minimum time a button must have to same state to register.
+    uint8_t buttonPressMinTime;
+    /// @brief The maximum time for a button press before it is considered a "hold" action
+    uint16_t buttonPressMaxTime;
+
     /// @brief Configuration for all DMX channels
     std::list<ChannelConfig> channelConfigs;
     /// @brief Configuration for all buttons
