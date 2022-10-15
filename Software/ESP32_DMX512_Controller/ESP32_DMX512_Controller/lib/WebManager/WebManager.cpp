@@ -3,6 +3,7 @@
 #include <LittleFS.h>
 #include <LMANConfig.h>
 #include <LightManager.h>
+#include <list>
 
 // Make space for variables in memory
 WebManager *WebManager::instance;
@@ -133,73 +134,42 @@ void WebManager::handleIndexDataEvent(AsyncWebSocket *server, AsyncWebSocketClie
                     Serial.println(error.f_str());
                     return;
                 }
-                String buttonId = doc["id"];
-                int dimmingTarget = doc["value"];
+                uint16_t channel = doc["channel"] | 0;
+                uint8_t dimmingTarget = doc["value"] | 0;
 
-                //     if (buttonId.startsWith("button1"))
-                //     {
-                //         DimmerButton *btn = lMan.getLightById(0);
-                //         if (btn)
-                //         {
-                //             if (dimmingTarget > 0)
-                //             {
-                //                 lMan.setOutputState(btn, true);
-                //                 lMan.setAutoDimmingTarget(btn, dimmingTarget);
-                //             }
-                //             else
-                //             {
-                //                 lMan.setOutputState(btn, false);
-                //             }
-                //         }
-                //     }
-                //     else if (buttonId.startsWith("button2"))
-                //     {
-                //         DimmerButton *btn = lMan.getLightById(1);
-                //         if (btn)
-                //         {
-                //             if (dimmingTarget > 0)
-                //             {
-                //                 lMan.setOutputState(btn, true);
-                //                 lMan.setAutoDimmingTarget(btn, dimmingTarget);
-                //             }
-                //             else
-                //             {
-                //                 lMan.setOutputState(btn, false);
-                //             }
-                //         }
-                //     }
-                //     else if (buttonId.startsWith("button3"))
-                //     {
-                //         DimmerButton *btn = lMan.getLightById(2);
-                //         if (btn)
-                //         {
-                //             if (dimmingTarget > 0)
-                //             {
-                //                 lMan.setOutputState(btn, true);
-                //                 lMan.setAutoDimmingTarget(btn, dimmingTarget);
-                //             }
-                //             else
-                //             {
-                //                 lMan.setOutputState(btn, false);
-                //             }
-                //         }
-                //     }
-                //     else if (buttonId.startsWith("button4"))
-                //     {
-                //         DimmerButton *btn = lMan.getLightById(3);
-                //         if (btn)
-                //         {
-                //             if (dimmingTarget > 0)
-                //             {
-                //                 lMan.setOutputState(btn, true);
-                //                 lMan.setAutoDimmingTarget(btn, dimmingTarget);
-                //             }
-                //             else
-                //             {
-                //                 lMan.setOutputState(btn, false);
-                //             }
-                //         }
-                //     }
+                if (channel != 0)
+                {
+                    for (std::list<DMXChannel>::iterator it = LightManager::instance->dmxChannels.begin(); it != LightManager::instance->dmxChannels.end(); ++it)
+                    {
+                        if (it->config->channel == channel)
+                        {
+                            LOG_DEBUG("Found match!");
+                            if (it->state && dimmingTarget == 0)
+                            {
+                                LightManager::instance->autoDimOff(&(*it));
+                            }
+                            else if (!it->state && dimmingTarget != 0)
+                            {
+                                LightManager::instance->autoDimOnToLevel(&(*it), dimmingTarget);
+                            }
+                            else if (it->state)
+                            {
+                                LightManager::instance->autoDimTo(&(*it), dimmingTarget);
+                            }
+                            else
+                            {
+                                LOG_ERROR("Unknown combination of command data!");
+                                LOG_ERROR("State : ", LOG_BOLD, it->state ? "ON" : "OFF");
+                                LOG_ERROR("Target: ", LOG_BOLD, dimmingTarget);
+                            }
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    LOG_ERROR("Failed to get channel!");
+                }
             }
         }
     }

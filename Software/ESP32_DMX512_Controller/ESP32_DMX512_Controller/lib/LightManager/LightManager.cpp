@@ -342,6 +342,15 @@ void LightManager::autoDimTo(DMXChannel *dmxChannel, uint8_t level)
 {
   if (dmxChannel->stopAutoDimming())
   {
+    if (level > dmxChannel->config->max)
+    {
+      level = dmxChannel->config->max;
+    }
+    else if (level < dmxChannel->config->min)
+    {
+      level = dmxChannel->config->min;
+    }
+
     LOG_DEBUG("Starting auto-dim to level: ", level);
     dmxChannel->autoDimmingTarget = level;
     dmxChannel->isAutoDimming = true;

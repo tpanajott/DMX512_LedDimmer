@@ -24,6 +24,7 @@ function connectWebSocket() {
                     $("#channel" + (i + 1) + "_enabled").prop("checked", json_data["channels"][i]["enabled"]);
                     $("#channel" + (i + 1) + "_name").val(json_data["channels"][i]["name"]);
                     $("#channel" + (i + 1) + "_channel").val(json_data["channels"][i]["channel"]);
+                    $("#channel" + (i + 1) + "_output_slider").data("channel", json_data["channels"][i]["channel"]);
                     $("#channel" + (i + 1) + "_min").val(json_data["channels"][i]["min"]);
                     $("#channel" + (i + 1) + "_max").val(json_data["channels"][i]["max"]);
                     $("#channel" + (i + 1) + "_dimmingSpeed").val(json_data["channels"][i]["dimmingSpeed"]);
@@ -113,9 +114,10 @@ function connectWebSocket() {
 
 function sendLightUpdateFromSlider(slider) {
     var message = {
-        "id": slider.id,
-        "value": slider.value
+        "channel": $(slider).data('channel'),
+        "value": parseInt(slider.value)
     };
+    console.log(message);
     socket.send(JSON.stringify(message));
 }
 
