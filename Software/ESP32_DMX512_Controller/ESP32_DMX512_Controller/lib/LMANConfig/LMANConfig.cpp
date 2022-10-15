@@ -4,6 +4,51 @@
 #include <ArduinoJson.h>
 #include <FS.h>
 
+std::string ChannelConfig::getBaseTopic()
+{
+    if (this->_baseTopic.empty())
+    {
+        LOG_DEBUG("_baseTopic not set yet. Building!");
+        this->_baseTopic.append(LMANConfig::instance->home_assistant_base_topic);
+        this->_baseTopic.append("light/");
+        this->_baseTopic.append(LMANConfig::instance->wifi_hostname);
+        this->_baseTopic.append("/");
+        this->_baseTopic.append(this->name);
+    }
+    return this->_baseTopic;
+}
+
+std::string ChannelConfig::getCmdTopic()
+{
+    std::string cmdTopic = this->getBaseTopic();
+    cmdTopic.append("/cmd");
+    return cmdTopic;
+}
+
+std::string ChannelConfig::getStateTopic()
+{
+    std::string stateTopic = this->getBaseTopic();
+    stateTopic.append("/state");
+    return stateTopic;
+}
+
+std::string ChannelConfig::getCfgTopic()
+{
+    std::string cfgTopic = this->getBaseTopic();
+    cfgTopic.append("/config");
+    return cfgTopic;
+}
+
+std::string ChannelConfig::getAvailabilityTopic()
+{
+    std::string availabilityTopic = LMANConfig::instance->home_assistant_base_topic;
+    availabilityTopic.append("light/");
+    availabilityTopic.append(LMANConfig::instance->wifi_hostname);
+    availabilityTopic.append("/aval");
+    return availabilityTopic;
+}
+
+// LMANConfig
 // Give somewhere in memory for instance to exist
 LMANConfig *LMANConfig::instance;
 
@@ -32,7 +77,7 @@ bool LMANConfig::loadFromLittleFS()
         return false;
     }
 
-    StaticJsonDocument<2048> doc;
+    StaticJsonDocument<3000> doc;
     DeserializationError error = deserializeJson(doc, configFile);
     if (error)
     {
@@ -45,30 +90,29 @@ bool LMANConfig::loadFromLittleFS()
     this->wifi_ssid = doc["wifi_ssid"] | "";
     this->wifi_psk = doc["wifi_psk"] | "";
 
-    this->wifi_retry_timeout_ms = doc["wifi_retry_timeout_ms"].as<uint16_t>() | 30000;
     this->home_assistant_wait_online_ms = doc["home_assistant_wait_online_ms"].as<uint16_t>() | 30000;
+    this->home_assistant_base_topic = doc["home_assistant_base_topic"] | "homeassistant/";
 
     this->mqtt_server = doc["mqtt_server"] | "";
     this->mqtt_port = doc["mqtt_port"].as<uint8_t>() | 1883;
     this->mqtt_username = doc["mqtt_username"] | "";
     this->mqtt_password = doc["mqtt_password"] | "";
 
-    for (JsonVariant v : doc["channels"].as<JsonArray>())
+    JsonArray channelArray = doc["channels"].as<JsonArray>();
+    for (int i = 0; i < channelArray.size(); i++)
     {
-        uint8_t channel = v["channel"].as<uint8_t>();
+        uint8_t channel = channelArray[i]["channel"].as<uint8_t>();
         LOG_DEBUG("Loading channel ", LOG_BOLD, channel);
-        ChannelConfig cfg;
-        cfg.channel = channel;
-        cfg.min = v["min"].as<uint8_t>();
-        cfg.max = v["max"].as<uint8_t>();
-        cfg.holdPeriod = v["holdPeriod"].as<uint16_t>();
-        cfg.dimmingSpeed = v["dimmingSpeed"].as<uint8_t>();
-        cfg.autoDimmingSpeed = v["autoDimmingSpeed"].as<uint8_t>();
-        this->channelConfigs.push_back(cfg);
+        this->channelConfigs[i].channel = channel;
+        this->channelConfigs[i].name = channelArray[i]["name"] | "";
+        this->channelConfigs[i].min = channelArray[i]["min"].as<uint8_t>();
+        this->channelConfigs[i].max = channelArray[i]["max"].as<uint8_t>();
+        this->channelConfigs[i].holdPeriod = channelArray[i]["holdPeriod"].as<uint16_t>();
+        this->channelConfigs[i].dimmingSpeed = channelArray[i]["dimmingSpeed"].as<uint8_t>();
     }
 
     JsonArray btnConfigs = doc["buttons"].as<JsonArray>();
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < btnConfigs.size(); i++)
     {
         LOG_INFO("Loading button ", LOG_BOLD, i);
         this->buttonConfigs[i].channel = btnConfigs[i]["channel"].as<uint8_t>() | 1;

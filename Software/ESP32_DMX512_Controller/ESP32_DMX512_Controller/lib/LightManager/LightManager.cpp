@@ -1,6 +1,9 @@
 #include <LightManager.h>
 #include <ESPDMX.h>
 
+// Reserve memory for variables
+// std::mutex DMXChannel::_autoDimmingHandleMutex;
+
 // DMX Channel functions
 void DMXChannel::init(TaskHandle_t *dmxSendTask, DMXESPSerial *dmx, ChannelConfig *config)
 {
@@ -8,18 +11,22 @@ void DMXChannel::init(TaskHandle_t *dmxSendTask, DMXESPSerial *dmx, ChannelConfi
   this->level = this->config->max;
   this->_dmxSendTask = dmxSendTask;
   this->_dmx = dmx;
+  this->_autoDimmingHandleMutex = xSemaphoreCreateMutex();
 }
 
 void DMXChannel::setState(bool state)
 {
   this->state = state;
+  this->mqttSendUpdate = true;
   this->updateDMXData(true);
 }
 
 void DMXChannel::setLevel(uint8_t level)
 {
+  LOG_TRACE("Setting channel ", LOG_BOLD, this->config->channel, LOG_RESET_DECORATIONS, " to level ", LOG_BOLD, level);
   this->level = level;
   this->lastLevelChange = millis();
+  this->mqttSendUpdate = true;
   // If the light is on, send the update straight away
   this->updateDMXData(this->state);
 }
@@ -31,16 +38,29 @@ void DMXChannel::updateDMXData(bool sendUpdate)
   this->_dmx->write(this->config->channel, newLevel);
   if (sendUpdate)
   {
-    xTaskNotifyGive((*this->_dmxSendTask));
+    try
+    {
+      xTaskNotifyGive((*this->_dmxSendTask));
+    }
+    catch (const std::exception &e)
+    {
+      LOG_ERROR("Failed to notify _dmxSendTask. Error: ", LOG_BOLD, e.what());
+    }
   }
 }
 
-void DMXChannel::stopAutoDimming()
+bool DMXChannel::stopAutoDimming()
 {
-  if (this->taskHandleAutoDimming)
+  try
   {
-    this->taskHandleAutoDimming = NULL;
-    vTaskDelete(this->taskHandleAutoDimming);
+    LOG_TRACE("Stop auto-dimming requested!");
+    this->isAutoDimming = false;
+    return true;
+  }
+  catch (const std::exception &e)
+  {
+    LOG_ERROR("Exception while stopping auto-dimming. Error: ", LOG_BOLD, e.what());
+    return false;
   }
 }
 
@@ -95,7 +115,7 @@ Button *LightManager::initButton(uint8_t buttonPin, ButtonConfig *buttonConfig)
 {
   // Find if the dmx channel to be used has already been created.
   DMXChannel *channel = nullptr;
-  for (std::list<DMXChannel>::iterator it = this->_dmxChannels.begin(); it != this->_dmxChannels.end(); ++it)
+  for (std::list<DMXChannel>::iterator it = this->dmxChannels.begin(); it != this->dmxChannels.end(); ++it)
   {
     if (it->config->channel == buttonConfig->channel)
     {
@@ -108,16 +128,18 @@ Button *LightManager::initButton(uint8_t buttonPin, ButtonConfig *buttonConfig)
   if (channel == nullptr)
   {
     LOG_WARNING("DMX Channel ", LOG_BOLD, buttonConfig->channel, LOG_RESET_DECORATIONS, " was not found. Trying to init from config.");
-    for (std::list<ChannelConfig>::iterator it = LMANConfig::instance->channelConfigs.begin(); it != LMANConfig::instance->channelConfigs.end(); ++it)
+    // for (std::list<ChannelConfig>::iterator it = LMANConfig::instance->channelConfigs.begin(); it != LMANConfig::instance->channelConfigs.end(); ++it)
+    for (int i = 0; i < sizeof(LMANConfig::instance->channelConfigs) / sizeof(DMXChannel); i++)
     {
+      ChannelConfig *it = &LMANConfig::instance->channelConfigs[i];
       if (it->channel == buttonConfig->channel)
       {
         LOG_INFO("Found matching config for channel ", LOG_BOLD, it->channel, LOG_RESET_DECORATIONS, " building new channel object.");
         DMXChannel newChannel;
         newChannel.state = false;
         newChannel.init(this->_dmxSendTask, this->_dmx, &(*it));
-        this->_dmxChannels.push_back(newChannel);
-        channel = &this->_dmxChannels.back();
+        this->dmxChannels.push_back(newChannel);
+        channel = &this->dmxChannels.back();
         break;
       }
     }
@@ -144,6 +166,7 @@ void LightManager::init(TaskHandle_t *dmxSendTask, DMXESPSerial *dmx)
   xTaskCreatePinnedToCore(_taskReadButtonStates, "taskReadButtonStates", 5000, NULL, 1, &this->_taskHandleReadButtonStates, CONFIG_ARDUINO_RUNNING_CORE);
   xTaskCreatePinnedToCore(taskProcessButtonEvents, "taskProcessButtonEvents", 5000, NULL, 1, &this->taskHandleProcessButtonEvents, CONFIG_ARDUINO_RUNNING_CORE);
   xTaskCreatePinnedToCore(_taskDimLights, "taskDimLights", 5000, NULL, 1, &this->_taskHandleDimLights, CONFIG_ARDUINO_RUNNING_CORE);
+  xTaskCreatePinnedToCore(_taskAutoDimLights, "taskAutoDimLights", 5000, NULL, 1, &this->_taskHandleAutoDimLights, CONFIG_ARDUINO_RUNNING_CORE);
 }
 
 void LightManager::_taskReadButtonStates(void *param)
@@ -213,18 +236,12 @@ void LightManager::taskProcessButtonEvents(void *param)
             if (it->dmxChannel->state)
             {
               LOG_DEBUG("Slow turn off triggered for channel ", LOG_BOLD, it->dmxChannel->config->channel);
-              it->dmxChannel->turnOffWhenAutoDimComplete = true;                              // Turn off the light when dimming is complete
-              it->dmxChannel->levelBeforeAutoDimming = it->dmxChannel->level;                 // Save the current level
-              LightManager::instance->autoDimTo(it->dmxChannel, it->dmxChannel->config->min); // Dim to targetUpdate DMX state.Update DMX state.Update DMX state.Update DMX state.Update DMX state.Update DMX state.Update DMX state.
+              LightManager::instance->autoDimOff(&(*it->dmxChannel));
             }
             else
             {
               LOG_DEBUG("Slow turn on triggered for channel ", LOG_BOLD, it->dmxChannel->config->channel);
-              it->dmxChannel->turnOffWhenAutoDimComplete = false;                                        // Do not turn off when auto-dim done.
-              it->dmxChannel->levelBeforeAutoDimming = it->dmxChannel->level;                            // What is the target level
-              it->dmxChannel->setLevel(it->dmxChannel->config->min);                                     // Set the current level to min
-              it->dmxChannel->setState(true);                                                            // Turn on the light
-              LightManager::instance->autoDimTo(it->dmxChannel, it->dmxChannel->levelBeforeAutoDimming); // Dim to the target
+              LightManager::instance->autoDimOn(&(*it->dmxChannel));
             }
             it->buttonEvents[0].handled = true;
           }
@@ -317,41 +334,124 @@ void LightManager::_taskDimLights(void *param)
 
 void LightManager::autoDimTo(DMXChannel *dmxChannel, uint8_t level)
 {
-  dmxChannel->stopAutoDimming(); // Stop any auto-dimming that is currently happening.
-  dmxChannel->autoDimmingTarget = level;
-  xTaskCreatePinnedToCore(taskAutoDimDMXChannel, "autoDimChannel", 1500, (void *)dmxChannel, 1, &dmxChannel->taskHandleAutoDimming, CONFIG_ARDUINO_RUNNING_CORE);
+  if (dmxChannel->stopAutoDimming())
+  {
+    LOG_DEBUG("Starting auto-dim to level: ", level);
+    dmxChannel->autoDimmingTarget = level;
+    dmxChannel->isAutoDimming = true;
+    // Resume auto-dimming task
+    xTaskNotifyGive(this->_taskHandleAutoDimLights);
+  }
+  else
+  {
+    LOG_ERROR("Failed to aquire stop current auto-dimming. Will not start auto-dimming!");
+  }
 }
 
-void LightManager::taskAutoDimDMXChannel(void *param)
+void LightManager::autoDimOn(DMXChannel *dmxChannel)
 {
-  DMXChannel *channel = (DMXChannel *)param;
-  LOG_INFO("Started auto-dimming of DMX channel ", LOG_BOLD, channel->config->channel, LOG_RESET_DECORATIONS, " target ", LOG_BOLD, channel->autoDimmingTarget);
-  while (channel->level != channel->autoDimmingTarget)
+  this->autoDimOnToLevel(dmxChannel, dmxChannel->level);
+}
+
+void LightManager::autoDimOnToLevel(DMXChannel *dmxChannel, uint8_t level)
+{
+  dmxChannel->turnOffWhenAutoDimComplete = false; // Do not turn off when auto-dim done.
+  dmxChannel->setLevel(dmxChannel->config->min);  // Set the current level to min
+  dmxChannel->setState(true);                     // Turn on the light
+  LightManager::autoDimTo(dmxChannel, level);
+}
+
+void LightManager::autoDimOff(DMXChannel *dmxChannel)
+{
+  dmxChannel->turnOffWhenAutoDimComplete = true;                          // Turn off the light when dimming is complete
+  dmxChannel->levelBeforeAutoDimming = dmxChannel->level;                 // Save the current level
+  LightManager::instance->autoDimTo(dmxChannel, dmxChannel->config->min); // Dim to target
+}
+
+void LightManager::_taskAutoDimLights(void *param)
+{
+  LOG_INFO("Started _taskAutoDimLights");
+  for (;;)
   {
-    if (channel->level < channel->autoDimmingTarget)
+    bool hasAutoDimmingJob = false;
+    for (std::list<DMXChannel>::iterator it = LightManager::instance->dmxChannels.begin(); it != LightManager::instance->dmxChannels.end(); ++it)
     {
-      channel->setLevel(channel->level + 1);
+      if (it->isAutoDimming)
+      {
+        if (it->level > it->autoDimmingTarget)
+        {
+          it->setLevel(it->level - 1);
+        }
+        else if (it->level < it->autoDimmingTarget)
+        {
+          it->setLevel(it->level + 1);
+        }
+
+        if (it->turnOffWhenAutoDimComplete && it->autoDimmingTarget == it->level)
+        {
+          it->setState(false);
+          it->turnOffWhenAutoDimComplete = false;
+          // Reset level to what it was before auto-dimming started.
+          LOG_DEBUG("Restoring previous level for DMX Channel: ", it->levelBeforeAutoDimming);
+          it->setLevel(it->levelBeforeAutoDimming);
+        }
+        else if (!hasAutoDimmingJob && it->autoDimmingTarget != it->level)
+        {
+          // Make sure we continue if more work is to be done.
+          hasAutoDimmingJob = true;
+        }
+      }
     }
-    else if (channel->level > channel->autoDimmingTarget)
+    if (hasAutoDimmingJob)
     {
-      channel->setLevel(channel->level - 1);
+      vTaskDelay(1);
     }
     else
     {
-      LOG_ERROR("UNKNOWN STATE! Stopping.");
-      channel->stopAutoDimming();
+      LOG_INFO("All auto-dimming events done. Waiting for notification.");
+      if (ulTaskNotifyTake(pdTRUE, portMAX_DELAY))
+      {
+        LOG_DEBUG("_taskAutoDimLights got notification!");
+      }
     }
-    vTaskDelay(channel->config->autoDimmingSpeed);
   }
-  // If turn off was requested, turn off the light when dimming is complete.
-  if (channel->turnOffWhenAutoDimComplete)
-  {
-    channel->setState(false);
-    channel->turnOffWhenAutoDimComplete = false;
-    // Reset level to what it was before auto-dimming started.
-    channel->setLevel(channel->levelBeforeAutoDimming);
-  }
-
-  // Dimming is done. Delete task handle on channel and stop the current task.
-  channel->stopAutoDimming();
 }
+
+// void LightManager::taskAutoDimDMXChannel(void *param)
+// {
+//   DMXChannel *channel = (DMXChannel *)param;
+//   LOG_INFO("Started auto-dimming of DMX channel ", LOG_BOLD, channel->config->channel, LOG_RESET_DECORATIONS, " target ", LOG_BOLD, channel->autoDimmingTarget);
+//   while (channel->level != channel->autoDimmingTarget)
+//   {
+//     if (channel->level < channel->autoDimmingTarget)
+//     {
+//       channel->setLevel(channel->level + 1);
+//     }
+//     else if (channel->level > channel->autoDimmingTarget)
+//     {
+//       channel->setLevel(channel->level - 1);
+//     }
+//     else
+//     {
+//       LOG_ERROR("UNKNOWN STATE! Stopping.");
+//       LOG_INFO("REQUEST STOP! ", String(__func__));
+//       channel->stopAutoDimming();
+//     }
+//     vTaskDelay(channel->config->autoDimmingSpeed / portTICK_PERIOD_MS);
+//   }
+//   // If turn off was requested, turn off the light when dimming is complete.
+//   if (channel->turnOffWhenAutoDimComplete)
+//   {
+//     channel->setState(false);
+//     channel->turnOffWhenAutoDimComplete = false;
+//     // Reset level to what it was before auto-dimming started.
+//     channel->setLevel(channel->levelBeforeAutoDimming);
+//   }
+
+//   // Dimming is done. Delete task handle on channel and stop the current task.
+//   LOG_INFO("REQUEST STOP! ", String(__func__));
+//   channel->stopAutoDimming();
+//   // If the above failed to stop. Stop our own task
+//   LOG_ERROR("Not stopped by stopAutoDimming. Will forcefully quit!");
+//   vTaskDelete(NULL);
+// }

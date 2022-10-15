@@ -26,8 +26,8 @@ void WebManager::init()
 
     this->_server.on("/do_reboot", HTTP_GET, WebManager::doRebootAt);
 
-    this->server.onNotFound([](AsyncWebServerRequest *request)
-                            { request->send(404, "text/plain", "File not found!"); });
+    this->_server.onNotFound([](AsyncWebServerRequest *request)
+                             { request->send(404, "text/plain", "File not found!"); });
 
     LOG_INFO("Starting web server.");
 

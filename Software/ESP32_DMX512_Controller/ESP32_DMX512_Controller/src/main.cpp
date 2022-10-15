@@ -1,13 +1,12 @@
 #include <ArduLog.h>
 #include <Arduino.h>
+#include <string>
 #include <LightManager.h>
 #include <pins.h>
 #include <LMANConfig.h>
 #include <ESPDMX.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-// #include <AsyncTCP.h>
-// #include <ESPAsyncWebServer.h>
 #include <WebManager.h>
 
 bool lastButton1State = false;
@@ -39,6 +38,176 @@ void taskHandleErrorLed(void *param)
   }
 }
 
+void mqttCallback(char *topic, byte *payload, unsigned int length)
+{
+  std::string tpc = topic;
+  std::string pld;
+  pld.assign((char *)payload, length);
+  LOG_TRACE("Got message on ", LOG_BOLD, tpc.c_str());
+  LOG_TRACE(pld.c_str());
+
+  StaticJsonDocument<256> doc;
+  DeserializationError err = deserializeJson(doc, payload, length);
+  if (err)
+  {
+    LOG_ERROR("Failed to deserialize JSON from message.");
+    return;
+  }
+  // Deserialization was successfull
+  for (std::list<DMXChannel>::iterator it = LightManager::instance->dmxChannels.begin(); it != LightManager::instance->dmxChannels.end(); ++it)
+  {
+    if (it->config->channel != 0)
+    {
+      if (it->config->getCmdTopic().compare(tpc) == 0)
+      {
+        try
+        {
+          LOG_INFO("Got MQTT command for ", LOG_BOLD, it->config->name.c_str());
+          if (doc.containsKey("brightness"))
+          {
+            uint8_t brightess = 128;
+            try
+            {
+              brightess = doc["brightness"].as<uint8_t>();
+            }
+            catch (const std::exception &e)
+            {
+              LOG_ERROR("Failed to cast brightness to uint8_t");
+              break; // Error converting. Do not do anything.
+            }
+
+            if (it->state)
+            {
+              // Light is already on, just dim to requested level.
+              LightManager::instance->autoDimTo(&(*it), brightess);
+            }
+            else if (!it->state)
+            {
+              // Light is off but a level was requested, turn on and dim to target.
+              LOG_INFO("Slow turn on requested by MQTT for ", LOG_BOLD, it->config->name.c_str(), LOG_RESET_DECORATIONS, " to level ", LOG_BOLD, brightess);
+              lMan.autoDimOnToLevel(&(*it), brightess);
+            }
+            else
+            {
+              LOG_ERROR("Unknown brightness!");
+            }
+          }
+          else if (doc.containsKey("state"))
+          {
+            std::string state = doc["state"] | "";
+            if (!it->state && state.compare("ON") == 0)
+            {
+              // Light us currently off and it was requsted on without brightess. Turn on to level from before.
+              LOG_INFO("Slow turn on requested by MQTT for ", LOG_BOLD, it->config->name.c_str());
+              lMan.autoDimOn(&(*it));
+            }
+            else if (it->state && state.compare("OFF") == 0)
+            {
+              // Light is on and a turn off was requested
+              lMan.autoDimOff(&(*it));
+            }
+            else
+            {
+              LOG_ERROR("Unknown state!");
+            }
+          }
+        }
+        catch (const std::exception &e)
+        {
+          LOG_ERROR("Exception when handling MQTT message: ", LOG_BOLD, e.what());
+        }
+        break;
+      }
+    }
+  }
+}
+
+/// @brief Send, if needed, a status update to MQTT
+void sendMqttStatusUpdate()
+{
+  if (!mqttClient.connected())
+  {
+    return;
+  }
+
+  for (std::list<DMXChannel>::iterator it = LightManager::instance->dmxChannels.begin(); it != LightManager::instance->dmxChannels.end(); ++it)
+  {
+    if (it->config->channel != 0 && millis() - it->lastLevelChange > 100 && it->mqttSendUpdate)
+    {
+      StaticJsonDocument<200> doc;
+      doc["state"] = it->state ? "ON" : "OFF";
+      doc["brightness"] = it->level;
+
+      char buffer[200];
+      size_t length = serializeJson(doc, buffer);
+      if (mqttClient.publish(it->config->getStateTopic().c_str(), buffer, length))
+      {
+        it->mqttSendUpdate = false;
+      }
+      else
+      {
+        LOG_ERROR("Failed to send state update for ", LOG_BOLD, it->config->name.c_str());
+      }
+    }
+  }
+}
+
+/// @brief Register device and channels to MQTT
+void registerToMqtt()
+{
+  for (int i = 0; i < sizeof(LMANConfig::instance->channelConfigs) / sizeof(ChannelConfig); i++)
+  {
+    if (LMANConfig::instance->channelConfigs[i].channel != 0)
+    {
+      // Subscribe to command topic
+      std::string cmdTopic = LMANConfig::instance->channelConfigs[i].getCmdTopic();
+      LOG_DEBUG("Subscribing to ", LOG_BOLD, cmdTopic.c_str());
+      mqttClient.subscribe(cmdTopic.c_str());
+
+      // Register light to home assistant
+      DynamicJsonDocument doc(1024);
+      ChannelConfig *config = &LMANConfig::instance->channelConfigs[i];
+      std::string unique_name = LMANConfig::instance->wifi_hostname;
+      unique_name.append("-");
+      unique_name.append(config->name);
+      doc["~"] = config->getBaseTopic();
+      doc["name"] = config->name.c_str();
+      doc["cmd_t"] = "~/cmd";
+      doc["stat_t"] = "~/state";
+      doc["schema"] = "json";
+      doc["brightness"] = true;
+      doc["avty_t"] = config->getAvailabilityTopic();
+
+      // Device information
+      std::string device_configuration_url = "http://";
+      device_configuration_url.append(WiFi.localIP().toString().c_str());
+
+      JsonObject device = doc.createNestedObject("device");
+      device["cu"] = device_configuration_url.c_str();
+      device["name"] = LMANConfig::instance->wifi_hostname;
+      device["mf"] = "Tim P";
+      JsonArray connections = device.createNestedArray("cns");
+      JsonArray mac_address = connections.createNestedArray();
+      mac_address.add("mac");
+      mac_address.add(WiFi.macAddress());
+      JsonArray ip_address = connections.createNestedArray();
+      ip_address.add("ip");
+      ip_address.add(WiFi.localIP().toString());
+
+      char buffer[1024];
+      size_t length = serializeJson(doc, buffer);
+      if (!mqttClient.publish(config->getCfgTopic().c_str(), (uint8_t *)buffer, length, true))
+      {
+        LOG_ERROR("Failed to register light ", LOG_BOLD, config->name.c_str());
+      }
+      else
+      {
+        LOG_INFO("Registered light to ", LOG_BOLD, config->getCfgTopic().c_str());
+      }
+    }
+  }
+}
+
 void taskWiFiMqttHandler(void *param)
 {
   LOG_INFO("taskWiFiMqttHandler started!");
@@ -53,7 +222,7 @@ void taskWiFiMqttHandler(void *param)
       {
         WiFi.begin(config.wifi_ssid.c_str(), config.wifi_psk.c_str());
         LOG_INFO("Connecting to WiFi ", LOG_BOLD, config.wifi_ssid.c_str());
-        vTaskDelay(5000);
+        vTaskDelay(1000);
         if (WiFi.isConnected())
         {
           LOG_INFO("Connected to WiFi ", LOG_BOLD, config.wifi_ssid.c_str());
@@ -81,12 +250,18 @@ void taskWiFiMqttHandler(void *param)
       while (WiFi.isConnected() && !mqttClient.connected())
       {
         mqttClient.setServer(config.mqtt_server.c_str(), config.mqtt_port);
+        mqttClient.setCallback(mqttCallback);
+        mqttClient.setBufferSize(2048);
         LOG_INFO("Connecting to MQTT server ", LOG_BOLD, config.mqtt_server.c_str());
-        mqttClient.connect(config.wifi_hostname.c_str(), config.mqtt_username.c_str(), config.mqtt_password.c_str());
-        vTaskDelay(5000);
+        // mqttClient.connect(config.wifi_hostname.c_str(), config.mqtt_username.c_str(), config.mqtt_password.c_str());
+        mqttClient.connect(config.wifi_hostname.c_str(), config.mqtt_username.c_str(), config.mqtt_password.c_str(), LMANConfig::instance->channelConfigs[0].getAvailabilityTopic().c_str(), 1, 1, "offline");
+        vTaskDelay(1000);
         if (mqttClient.connected())
         {
           LOG_INFO("Connected to MQTT server ", LOG_BOLD, config.mqtt_server.c_str());
+          mqttClient.subscribe(LMANConfig::instance->home_assistant_base_topic.c_str());
+          mqttClient.publish(LMANConfig::instance->channelConfigs[0].getAvailabilityTopic().c_str(), "online", true);
+          registerToMqtt();
         }
         else
         {
@@ -115,11 +290,12 @@ void taskSendDMXData(void *param)
 void loop()
 {
   mqttClient.loop();
+  sendMqttStatusUpdate();
   if (webMan.doReboot())
   {
     ESP.restart();
   }
-  vTaskDelay(250 / portTICK_PERIOD_MS);
+  vTaskDelay(100 / portTICK_PERIOD_MS);
 }
 
 void setup()
@@ -134,7 +310,7 @@ void setup()
   config.init();
   config.loadFromLittleFS();
 
-  dmx.init(5);
+  dmx.init(&Serial2, 5, 0);
 
   pinMode(PIN_ERROR_LED, OUTPUT);
   xTaskCreatePinnedToCore(taskHandleErrorLed, "taskErrorLed", 5000, NULL, 1, &taskHandleErrorLedHandle, CONFIG_ARDUINO_RUNNING_CORE);

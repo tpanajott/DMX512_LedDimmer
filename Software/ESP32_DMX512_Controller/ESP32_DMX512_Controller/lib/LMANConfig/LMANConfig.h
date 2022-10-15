@@ -4,20 +4,41 @@
 #include <string>
 #include <list>
 
-struct ChannelConfig
+class ChannelConfig
 {
+public:
+    /// @brief The name of this channel (mostly used for home assistant)
+    std::string name;
     /// @brief The minimum light level for this channel
     uint8_t min = 0;
     /// @brief The maximum light level for this channel
     uint8_t max = 255;
-    /// @brief The DMX channel to send data on
-    uint8_t channel;
+    /// @brief The DMX channel to send data on. A channel of 0 = no initialized/valid
+    uint8_t channel = 0;
     /// @brief The speed in ms to wait between dimming events.
     uint8_t dimmingSpeed = 5;
     /// @brief The period to hold the light at min/max when reached before reversing dimming.
     uint16_t holdPeriod = 800;
     /// @brief The speed of dimming in ms when auto-dimming.
     uint8_t autoDimmingSpeed = 1;
+    /// @brief Return the base topic where all other sub-topics for this channel exists
+    /// @return MQTT Topic
+    std::string getBaseTopic();
+    /// @brief Return the topic where state updates of this channel should be sent
+    /// @return MQTT Topic
+    std::string getStateTopic();
+    /// @brief Return the topic where commands for this channel are sent
+    /// @return MQTT Topic
+    std::string getCmdTopic();
+    /// @brief Return the topic where configuration for this channel are sent
+    /// @return MQTT Topic
+    std::string getCfgTopic();
+    /// @brief Return the topic where availability for this channel are sent
+    /// @return MQTT Topic
+    std::string getAvailabilityTopic();
+
+private:
+    std::string _baseTopic;
 };
 
 struct ButtonConfig
@@ -55,6 +76,8 @@ public:
     /// @brief Hwo long to wait after home assistant has sent "online"
     /// before registring entities again
     uint16_t home_assistant_wait_online_ms;
+    /// @brief The base topic of home assistant, typically "homeassistant/"
+    std::string home_assistant_base_topic;
     /// @brief Address to MQTT server
     std::string mqtt_server;
     /// @brief The port to connect to MQTT with
@@ -70,7 +93,7 @@ public:
     uint16_t buttonPressMaxTime;
 
     /// @brief Configuration for all DMX channels
-    std::list<ChannelConfig> channelConfigs;
+    ChannelConfig channelConfigs[4];
     /// @brief Configuration for all buttons
     ButtonConfig buttonConfigs[4];
 };

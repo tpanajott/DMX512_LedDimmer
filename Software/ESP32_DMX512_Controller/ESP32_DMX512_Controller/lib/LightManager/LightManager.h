@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <ESPDMX.h>
 #include <LMANConfig.h>
+#include <freertos/semphr.h>
 
 #include <list>
 #include <string>
@@ -24,12 +25,15 @@ public:
   uint8_t levelBeforeAutoDimming = 255;
   /// @brief The target for auto-dimming.
   uint8_t autoDimmingTarget = 0;
+  /// @brief Wether or not this channel is auto-dimming.
+  bool isAutoDimming = false;
   /// @brief Wether or not to turn off light when the auto-dimming target has been reached.
   bool turnOffWhenAutoDimComplete = false;
-  /// @brief The task that is handeling auto-dimming. NULL if no task is active
-  TaskHandle_t taskHandleAutoDimming = NULL;
   /// @brief Current state. True = output on, false = output off.
   bool state;
+  /// @brief Wether the state has changed since last MQTT update was sent.
+  /// Set to true so that at first connection a state update is sent.
+  bool mqttSendUpdate = true;
   /// @brief Set the output state and update DMX
   /// @param state The output state. true = on, false = off
   void setState(bool state);
@@ -40,11 +44,13 @@ public:
   /// @param sendUpdate Weather or not to send the update straight away or wait until next cycle.
   void updateDMXData(bool sendUpdate);
   /// @brief If auto-dimming is currently happening, stop it.
-  void stopAutoDimming();
+  /// @return True if stop was successful
+  bool stopAutoDimming();
 
 private:
   TaskHandle_t *_dmxSendTask;
   DMXESPSerial *_dmx;
+  SemaphoreHandle_t _autoDimmingHandleMutex = NULL;
 };
 
 struct ButtonEvent
@@ -107,17 +113,29 @@ public:
   /// @param dmxChannel The channel to auto-dim
   /// @param level The level to dim to.
   void autoDimTo(DMXChannel *dmxChannel, uint8_t level);
+  /// @brief Turn on light by auto-dimming to the previous level.
+  /// @param dmxChannel The DMX Channel to turn on.
+  /// @param level The requested level.
+  void autoDimOnToLevel(DMXChannel *dmxChannel, uint8_t level);
+  /// @brief Turn on light by auto-dimming to the previous level.
+  /// @param dmxChannel The DMX Channel to turn on.
+  void autoDimOn(DMXChannel *dmxChannel);
+  /// @brief Turn off light by auto-dimming to the previous level.
+  /// @param dmxChannel The DMX Channel to turn on.
+  void autoDimOff(DMXChannel *dmxChannel);
   static void taskAutoDimDMXChannel(void *param);
+  /// @brief The list of DMX Channels in use
+  std::list<DMXChannel> dmxChannels;
 
 private:
   TaskHandle_t _taskHandleReadButtonStates;
   static void _taskReadButtonStates(void *param);
   TaskHandle_t _taskHandleDimLights;
   static void _taskDimLights(void *param);
+  TaskHandle_t _taskHandleAutoDimLights;
+  static void _taskAutoDimLights(void *param);
   /// @brief The list of active buttons
   std::list<Button> _buttons;
-  /// @brief The list of DMX Channels in use
-  std::list<DMXChannel> _dmxChannels;
   TaskHandle_t *_dmxSendTask;
   /// @brief The DMX handler
   DMXESPSerial *_dmx;
