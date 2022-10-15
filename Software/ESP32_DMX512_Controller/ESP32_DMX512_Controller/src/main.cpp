@@ -138,7 +138,7 @@ void sendMqttStatusUpdate()
       doc["state"] = it->state ? "ON" : "OFF";
       doc["brightness"] = it->level;
 
-      char buffer[200];
+      char buffer[256];
       size_t length = serializeJson(doc, buffer);
       if (mqttClient.publish(it->config->getStateTopic().c_str(), buffer, length))
       {
@@ -231,7 +231,7 @@ void taskWiFiMqttHandler(void *param)
           LOG_INFO("Gateway:    ", LOG_BOLD, WiFi.gatewayIP());
           // Start web server
           // webMan.init(&webServer);
-          webMan.init();
+          webMan.init(&mqttClient);
         }
         else
         {
@@ -320,8 +320,14 @@ void setup()
   lMan.init(&taskHandleSendDMXData, &dmx);
   lMan.buttonPressMinTime = 80;
   lMan.buttonPressMaxTime = 800;
+
+  lMan.initDMXChannel(&LMANConfig::instance->channelConfigs[0]);
+  lMan.initDMXChannel(&LMANConfig::instance->channelConfigs[1]);
+  lMan.initDMXChannel(&LMANConfig::instance->channelConfigs[2]);
+  lMan.initDMXChannel(&LMANConfig::instance->channelConfigs[3]);
+
   lMan.initButton(PIN_BUTTON_1, &LMANConfig::instance->buttonConfigs[0]);
-  // lMan.initButton(PIN_BUTTON_2, &LMANConfig::instance->buttonConfigs[1]);
-  // lMan.initButton(PIN_BUTTON_3, &LMANConfig::instance->buttonConfigs[2]);
-  // lMan.initButton(PIN_BUTTON_4, &LMANConfig::instance->buttonConfigs[3]]);
+  lMan.initButton(PIN_BUTTON_2, &LMANConfig::instance->buttonConfigs[1]);
+  lMan.initButton(PIN_BUTTON_3, &LMANConfig::instance->buttonConfigs[2]);
+  lMan.initButton(PIN_BUTTON_4, &LMANConfig::instance->buttonConfigs[3]);
 }

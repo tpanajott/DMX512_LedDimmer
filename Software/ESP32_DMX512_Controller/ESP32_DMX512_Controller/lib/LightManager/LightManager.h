@@ -34,6 +34,7 @@ public:
   /// @brief Wether the state has changed since last MQTT update was sent.
   /// Set to true so that at first connection a state update is sent.
   bool mqttSendUpdate = true;
+  bool webSendUpdate = false;
   /// @brief Set the output state and update DMX
   /// @param state The output state. true = on, false = off
   void setState(bool state);
@@ -98,6 +99,10 @@ public:
   /// @param buttonPin The GPIO pin used to read button state
   /// @param buttonConfig The Button configuration from config manager
   Button *initButton(uint8_t buttonPin, ButtonConfig *buttonConfig);
+  /// @brief Initiate a DMX channel
+  /// @param config The config object for the channel
+  /// @return The created DMX channel object
+  DMXChannel *initDMXChannel(ChannelConfig *config);
   /// @brief The time in ms a button must have the same state for it to be considered valid
   uint8_t buttonPressMinTime;
   /// @brief The time max time in ms for a button to be high to be considered a "press".
@@ -126,6 +131,8 @@ public:
   static void taskAutoDimDMXChannel(void *param);
   /// @brief The list of DMX Channels in use
   std::list<DMXChannel> dmxChannels;
+  /// @brief The list of active buttons
+  std::list<Button> buttons;
 
 private:
   TaskHandle_t _taskHandleReadButtonStates;
@@ -134,8 +141,6 @@ private:
   static void _taskDimLights(void *param);
   TaskHandle_t _taskHandleAutoDimLights;
   static void _taskAutoDimLights(void *param);
-  /// @brief The list of active buttons
-  std::list<Button> _buttons;
   TaskHandle_t *_dmxSendTask;
   /// @brief The DMX handler
   DMXESPSerial *_dmx;

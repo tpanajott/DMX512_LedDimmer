@@ -109,6 +109,7 @@ bool LMANConfig::loadFromLittleFS()
         this->channelConfigs[i].max = channelArray[i]["max"].as<uint8_t>();
         this->channelConfigs[i].holdPeriod = channelArray[i]["holdPeriod"].as<uint16_t>();
         this->channelConfigs[i].dimmingSpeed = channelArray[i]["dimmingSpeed"].as<uint8_t>();
+        this->channelConfigs[i].enabled = (channelArray[i]["enabled"].as<uint8_t>() | 0) == 1;
     }
 
     JsonArray btnConfigs = doc["buttons"].as<JsonArray>();

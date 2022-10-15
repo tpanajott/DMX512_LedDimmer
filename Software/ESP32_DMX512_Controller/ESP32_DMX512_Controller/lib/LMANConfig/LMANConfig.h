@@ -21,6 +21,8 @@ public:
     uint16_t holdPeriod = 800;
     /// @brief The speed of dimming in ms when auto-dimming.
     uint8_t autoDimmingSpeed = 1;
+    /// @brief Wether or not this channel is enabled.
+    bool enabled = false;
     /// @brief Return the base topic where all other sub-topics for this channel exists
     /// @return MQTT Topic
     std::string getBaseTopic();

@@ -18,6 +18,7 @@ void DMXChannel::setState(bool state)
 {
   this->state = state;
   this->mqttSendUpdate = true;
+  this->webSendUpdate = true;
   this->updateDMXData(true);
 }
 
@@ -27,6 +28,7 @@ void DMXChannel::setLevel(uint8_t level)
   this->level = level;
   this->lastLevelChange = millis();
   this->mqttSendUpdate = true;
+  this->webSendUpdate = true;
   // If the light is on, send the update straight away
   this->updateDMXData(this->state);
 }
@@ -127,35 +129,39 @@ Button *LightManager::initButton(uint8_t buttonPin, ButtonConfig *buttonConfig)
   // If the dmx channel to be used was not found in the list, create it.
   if (channel == nullptr)
   {
-    LOG_WARNING("DMX Channel ", LOG_BOLD, buttonConfig->channel, LOG_RESET_DECORATIONS, " was not found. Trying to init from config.");
-    // for (std::list<ChannelConfig>::iterator it = LMANConfig::instance->channelConfigs.begin(); it != LMANConfig::instance->channelConfigs.end(); ++it)
-    for (int i = 0; i < sizeof(LMANConfig::instance->channelConfigs) / sizeof(DMXChannel); i++)
-    {
-      ChannelConfig *it = &LMANConfig::instance->channelConfigs[i];
-      if (it->channel == buttonConfig->channel)
-      {
-        LOG_INFO("Found matching config for channel ", LOG_BOLD, it->channel, LOG_RESET_DECORATIONS, " building new channel object.");
-        DMXChannel newChannel;
-        newChannel.state = false;
-        newChannel.init(this->_dmxSendTask, this->_dmx, &(*it));
-        this->dmxChannels.push_back(newChannel);
-        channel = &this->dmxChannels.back();
-        break;
-      }
-    }
+    LOG_ERROR("Failed to find matching DMX channel. Will not initiate button!");
   }
 
   LOG_DEBUG("Initializing button on PIN ", LOG_BOLD, buttonPin);
   Button newBtn;
   newBtn.pin = buttonPin;
   newBtn.dmxChannel = channel;
+  newBtn.config = buttonConfig;
   // Mark all events handled from the start.
   newBtn.buttonEvents[0].handled = true;
   newBtn.buttonEvents[1].handled = true;
   newBtn.buttonEvents[2].handled = true;
-  attachInterrupt(buttonPin, LightManager::ISRForwarder, CHANGE);
-  this->_buttons.push_back(newBtn);
-  return &this->_buttons.back();
+  pinMode(buttonPin, INPUT_PULLUP);
+  if (buttonConfig->enabled)
+  {
+    attachInterrupt(buttonPin, LightManager::ISRForwarder, CHANGE);
+  }
+  else
+  {
+    LOG_WARNING("Button on pin ", LOG_BOLD, buttonPin, LOG_RESET_DECORATIONS, " not enabled. Will not enabled interrupt!");
+  }
+  this->buttons.push_back(newBtn);
+  return &this->buttons.back();
+}
+
+DMXChannel *LightManager::initDMXChannel(ChannelConfig *config)
+{
+  LOG_INFO("Initiating DMX Channel ", LOG_BOLD, config->channel);
+  DMXChannel newChannel;
+  newChannel.state = false;
+  newChannel.init(this->_dmxSendTask, this->_dmx, config);
+  this->dmxChannels.push_back(newChannel);
+  return &(*this->dmxChannels.end());
 }
 
 void LightManager::init(TaskHandle_t *dmxSendTask, DMXESPSerial *dmx)
@@ -178,7 +184,7 @@ void LightManager::_taskReadButtonStates(void *param)
     {
       if (LightManager::instance)
       {
-        for (std::list<Button>::iterator it = LightManager::instance->_buttons.begin(); it != LightManager::instance->_buttons.end(); ++it)
+        for (std::list<Button>::iterator it = LightManager::instance->buttons.begin(); it != LightManager::instance->buttons.end(); ++it)
         {
           it->updateState();
         }
@@ -208,7 +214,7 @@ void LightManager::taskProcessButtonEvents(void *param)
     if (LightManager::instance)
     {
       bool unhandledButtonEvents = true;
-      for (std::list<Button>::iterator it = LightManager::instance->_buttons.begin(); it != LightManager::instance->_buttons.end(); ++it)
+      for (std::list<Button>::iterator it = LightManager::instance->buttons.begin(); it != LightManager::instance->buttons.end(); ++it)
       {
         // Do initial filtering
         if (!it->buttonEvents[0].handled && it->getTimeDelta(0, 1) >= LightManager::instance->buttonPressMinTime)
@@ -278,7 +284,7 @@ void LightManager::_taskDimLights(void *param)
   for (;;)
   {
     bool hasDimmingJob = false;
-    for (std::list<Button>::iterator it = LightManager::instance->_buttons.begin(); it != LightManager::instance->_buttons.end(); ++it)
+    for (std::list<Button>::iterator it = LightManager::instance->buttons.begin(); it != LightManager::instance->buttons.end(); ++it)
     {
       // Latest state is high, dim the light
       if (it->buttonEvents[0].state)
