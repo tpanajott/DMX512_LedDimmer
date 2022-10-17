@@ -6,8 +6,8 @@ This is a wireless DMX512 controller that will accept input of channel data via 
 ![Index](Software/Controller/screenshots/index.png)
 ![WiFi_list](Software/Controller/screenshots/wifi_list.png)
 ### Controller board
-![Front](PCB/DMX_ControllerBoard/DMX_ControllerBoard.png)
-![Back](PCB/DMX_ControllerBoard/DMX_ControllerBoard_Back.png)
+![Front](PCB/DMX_ControllerBoard_ESP32/DMX_ControllerBoard.png)
+![Back](PCB/DMX_ControllerBoard_ESP32/DMX_ControllerBoard_Back.png)
 ### LED Driver board
 ![Front](PCB/DMX_CC_LED_Driver/DMX_CC_LED_Driver.png)
 
