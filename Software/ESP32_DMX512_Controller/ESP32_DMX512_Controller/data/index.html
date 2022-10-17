@@ -125,7 +125,7 @@
                 <p>Are you sure you want to factory reset the device?</p>
             </section>
             <footer class="modal-card-foot">
-                <button class="button is-danger" onclick="doFactoryReset();">Factory Reset</button>
+                <a class="button is-danger" href="/do_factory_reset">Factory Reset</a>
                 <button class="button" onclick="cancelFactoryReset();">Cancel</button>
             </footer>
         </div>
@@ -143,9 +143,6 @@
         <div class="notification is-danger hidden" id="mqtt_connection_error">
             MQTT is not connected! Local control with buttons will still work.
         </div>
-        <div class="notification is-danger hidden" id="home_assistant_connection_error">
-            Home Assistant is not available on MQTT! Local control with buttons will still work.
-        </div>
 
         <form method="POST" action="/save_config" id="config">
             <div class="box">
@@ -155,13 +152,6 @@
                     <div class="control">
                         <input class="input" type="text" name="wifi_hostname" id="wifi_hostname"
                             placeholder="Device name" required>
-                    </div>
-                </div>
-                <div class="field">
-                    <label class="label">Home Assistant online wait period in milliseconds</label>
-                    <div class="control">
-                        <input class="input" type="number" name="home_assistant_online_wait_period_ms"
-                            id="home_assistant_online_wait_period_ms" placeholder="Home Assistant wait period" required>
                     </div>
                 </div>
                 <div class="field">
@@ -281,7 +271,7 @@
                             <label class="label">Dimming Speed (ms between dimming)</label>
                             <div class="control">
                                 <input class="input" type="number" name="channel1_dimmingSpeed"
-                                    id="channel1_dimmingSpeed" min=5 max=25 required>
+                                    id="channel1_dimmingSpeed" min=1 max=25 required>
                             </div>
                         </div>
                         <div class="field">
@@ -333,13 +323,6 @@
                             </div>
                         </div>
                         <div class="field">
-                            <label class="label">Maximum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="channel2_max" id="channel2_max" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
                             <label class="label">Minimum Level:</label>
                             <div class="control">
                                 <input class="input" type="number" name="channel2_min" id="channel2_min" min=1 max=255
@@ -347,10 +330,18 @@
                             </div>
                         </div>
                         <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel2_max" id="channel2_max" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+
+                        <div class="field">
                             <label class="label">Dimming Speed (ms between dimming)</label>
                             <div class="control">
                                 <input class="input" type="number" name="channel2_dimmingSpeed"
-                                    id="channel2_dimmingSpeed" min=5 max=25 required>
+                                    id="channel2_dimmingSpeed" min=1 max=25 required>
                             </div>
                         </div>
                         <div class="field">
@@ -402,13 +393,6 @@
                             </div>
                         </div>
                         <div class="field">
-                            <label class="label">Maximum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="channel3_max" id="channel3_max" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
                             <label class="label">Minimum Level:</label>
                             <div class="control">
                                 <input class="input" type="number" name="channel3_min" id="channel3_min" min=1 max=255
@@ -416,10 +400,18 @@
                             </div>
                         </div>
                         <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel3_max" id="channel3_max" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+
+                        <div class="field">
                             <label class="label">Dimming Speed (ms between dimming)</label>
                             <div class="control">
                                 <input class="input" type="number" name="channel3_dimmingSpeed"
-                                    id="channel3_dimmingSpeed" min=5 max=25 required>
+                                    id="channel3_dimmingSpeed" min=1 max=25 required>
                             </div>
                         </div>
                         <div class="field">
@@ -471,13 +463,6 @@
                             </div>
                         </div>
                         <div class="field">
-                            <label class="label">Maximum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="channel4_max" id="channel4_max" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
                             <label class="label">Minimum Level:</label>
                             <div class="control">
                                 <input class="input" type="number" name="channel4_min" id="channel4_min" min=1 max=255
@@ -485,10 +470,18 @@
                             </div>
                         </div>
                         <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel4_max" id="channel4_max" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+
+                        <div class="field">
                             <label class="label">Dimming Speed (ms between dimming)</label>
                             <div class="control">
                                 <input class="input" type="number" name="channel4_dimmingSpeed"
-                                    id="channel4_dimmingSpeed" min=5 max=25 required>
+                                    id="channel4_dimmingSpeed" min=1 max=25 required>
                             </div>
                         </div>
                         <div class="field">
@@ -610,6 +603,12 @@
                         <input class="input" type="text" name="mqtt_base_topic" id="mqtt_base_topic"
                             placeholder="MQTT Topic" required>
                     </div>
+                </div>
+                <div class="field">
+                    <label class="checkbox">
+                        <input type="checkbox" name="mqtt_auth" id="mqtt_auth">
+                        Use MQTT authentication?
+                    </label>
                 </div>
                 <div class="field" id="mqtt_username_field">
                     <label class="label">MQTT Username</label>

@@ -9,7 +9,6 @@
 #include <PubSubClient.h>
 #include <WebManager.h>
 
-bool lastButton1State = false;
 ArduLog logger;
 LMANConfig config;
 LightManager lMan;
@@ -18,15 +17,24 @@ TaskHandle_t taskHandleErrorLedHandle = NULL;
 TaskHandle_t taskHandleSendDMXData = NULL;
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
-// AsyncWebServer webServer(80);
 WebManager webMan;
+bool lastResetButtonState = false;
+unsigned long lastResetButtonStateChange = 0;
 
 void taskHandleErrorLed(void *param)
 {
   LOG_INFO("taskHandleErrorLed started!");
   for (;;)
   {
-    if (!WiFi.isConnected())
+    if (lastResetButtonState && millis() - lastResetButtonStateChange > 1000)
+    {
+      digitalWrite(PIN_ERROR_LED, (millis() / 100) % 2 == 0);
+    }
+    else if (LMANConfig::instance->wifi_ssid.empty())
+    {
+      digitalWrite(PIN_ERROR_LED, (millis() / 250) % 2 == 0);
+    }
+    else if (!WiFi.isConnected())
     {
       digitalWrite(PIN_ERROR_LED, 1);
     }
@@ -211,69 +219,102 @@ void registerToMqtt()
 void taskWiFiMqttHandler(void *param)
 {
   LOG_INFO("taskWiFiMqttHandler started!");
-  for (;;)
+  if (!LMANConfig::instance->wifi_ssid.empty())
   {
-    if (!WiFi.isConnected() && !config.wifi_ssid.empty())
+    for (;;)
     {
-      LOG_ERROR("WiFi not connected!");
-      WiFi.mode(WIFI_STA);
-      WiFi.setHostname(config.wifi_hostname.c_str());
-      while (!WiFi.isConnected())
+      if (!WiFi.isConnected() && !config.wifi_ssid.empty())
       {
-        WiFi.begin(config.wifi_ssid.c_str(), config.wifi_psk.c_str());
-        LOG_INFO("Connecting to WiFi ", LOG_BOLD, config.wifi_ssid.c_str());
-        vTaskDelay(1000);
-        if (WiFi.isConnected())
+        LOG_ERROR("WiFi not connected!");
+        WiFi.mode(WIFI_STA);
+        WiFi.setHostname(config.wifi_hostname.c_str());
+        while (!WiFi.isConnected())
         {
-          LOG_INFO("Connected to WiFi ", LOG_BOLD, config.wifi_ssid.c_str());
-          LOG_INFO("IP Address: ", LOG_BOLD, WiFi.localIP());
-          LOG_INFO("Netmask:    ", LOG_BOLD, WiFi.subnetMask());
-          LOG_INFO("Gateway:    ", LOG_BOLD, WiFi.gatewayIP());
-          // Start web server
-          // webMan.init(&webServer);
-          webMan.init(&mqttClient);
-        }
-        else
-        {
-          LOG_ERROR("Failed to connect to WiFi. Will try again in 10 seconds");
+          WiFi.begin(config.wifi_ssid.c_str(), config.wifi_psk.c_str());
+          LOG_INFO("Connecting to WiFi ", LOG_BOLD, config.wifi_ssid.c_str());
+          vTaskDelay(1000);
+          if (WiFi.isConnected())
+          {
+            LOG_INFO("Connected to WiFi ", LOG_BOLD, config.wifi_ssid.c_str());
+            LOG_INFO("IP Address: ", LOG_BOLD, WiFi.localIP());
+            LOG_INFO("Netmask:    ", LOG_BOLD, WiFi.subnetMask());
+            LOG_INFO("Gateway:    ", LOG_BOLD, WiFi.gatewayIP());
+            // Start web server
+            // webMan.init(&webServer);
+            webMan.init(&mqttClient);
+          }
+          else
+          {
+            LOG_ERROR("Failed to connect to WiFi. Will try again in 10 seconds");
+          }
         }
       }
-    }
-    else if (config.wifi_ssid.empty())
-    {
-      LOG_ERROR("No WiFi SSID configured!");
-    }
+      else if (config.wifi_ssid.empty())
+      {
+        LOG_ERROR("No WiFi SSID configured!");
+      }
 
-    if (WiFi.isConnected() && !mqttClient.connected() && !config.mqtt_server.empty())
-    {
-      LOG_ERROR("MQTT not connected!");
-      while (WiFi.isConnected() && !mqttClient.connected())
+      if (WiFi.isConnected() && !mqttClient.connected() && !config.mqtt_server.empty())
       {
-        mqttClient.setServer(config.mqtt_server.c_str(), config.mqtt_port);
-        mqttClient.setCallback(mqttCallback);
-        mqttClient.setBufferSize(2048);
-        LOG_INFO("Connecting to MQTT server ", LOG_BOLD, config.mqtt_server.c_str());
-        // mqttClient.connect(config.wifi_hostname.c_str(), config.mqtt_username.c_str(), config.mqtt_password.c_str());
-        mqttClient.connect(config.wifi_hostname.c_str(), config.mqtt_username.c_str(), config.mqtt_password.c_str(), LMANConfig::instance->channelConfigs[0].getAvailabilityTopic().c_str(), 1, 1, "offline");
-        vTaskDelay(1000);
-        if (mqttClient.connected())
+        LOG_ERROR("MQTT not connected!");
+        while (WiFi.isConnected() && !mqttClient.connected())
         {
-          LOG_INFO("Connected to MQTT server ", LOG_BOLD, config.mqtt_server.c_str());
-          mqttClient.subscribe(LMANConfig::instance->home_assistant_base_topic.c_str());
-          mqttClient.publish(LMANConfig::instance->channelConfigs[0].getAvailabilityTopic().c_str(), "online", true);
-          registerToMqtt();
-        }
-        else
-        {
-          LOG_ERROR("Failed to connect to MQTT. Will try again in 10 seconds");
+          mqttClient.setServer(config.mqtt_server.c_str(), config.mqtt_port);
+          mqttClient.setCallback(mqttCallback);
+          mqttClient.setBufferSize(2048);
+          LOG_INFO("Connecting to MQTT server ", LOG_BOLD, config.mqtt_server.c_str());
+          // mqttClient.connect(config.wifi_hostname.c_str(), config.mqtt_username.c_str(), config.mqtt_password.c_str());
+          mqttClient.connect(config.wifi_hostname.c_str(), config.mqtt_username.c_str(), config.mqtt_password.c_str(), LMANConfig::instance->channelConfigs[0].getAvailabilityTopic().c_str(), 1, 1, "offline");
+          vTaskDelay(1000);
+          if (mqttClient.connected())
+          {
+            LOG_INFO("Connected to MQTT server ", LOG_BOLD, config.mqtt_server.c_str());
+            mqttClient.subscribe(LMANConfig::instance->home_assistant_base_topic.c_str());
+            mqttClient.publish(LMANConfig::instance->channelConfigs[0].getAvailabilityTopic().c_str(), "online", true);
+            registerToMqtt();
+          }
+          else
+          {
+            LOG_ERROR("Failed to connect to MQTT. Will try again in 10 seconds");
+          }
         }
       }
+      else if (config.mqtt_server.empty())
+      {
+        LOG_ERROR("No MQTT server configured!");
+      }
+      vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
-    else if (config.mqtt_server.empty())
+  }
+  else
+  {
+    LOG_ERROR("No WiFi configuration exists. Starting AP!");
+    IPAddress local_ip(192, 168, 1, 1);
+    IPAddress gateway(192, 168, 1, 1);
+    IPAddress subnet(255, 255, 255, 0);
+
+    if (WiFi.softAPConfig(local_ip, gateway, subnet))
     {
-      LOG_ERROR("No MQTT server configured!");
+      LOG_INFO("Soft-AP configuration applied.");
+      if (WiFi.softAP("Light Controller", "password"))
+      {
+        LOG_INFO("Soft-AP started.");
+
+        LOG_INFO("WiFi SSID: Light Controller");
+        LOG_INFO("WiFi PSK : password");
+        LOG_INFO("WiFi IP Address: ", WiFi.softAPIP().toString().c_str());
+        webMan.init(&mqttClient);
+        vTaskDelete(NULL); // This task is complete. Stop processing.
+      }
+      else
+      {
+        LOG_ERROR("Failed to start Soft-AP!");
+      }
     }
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
+    else
+    {
+      LOG_ERROR("Failed to apply Soft-AP configuration!");
+    }
   }
 }
 
@@ -295,6 +336,20 @@ void loop()
   {
     ESP.restart();
   }
+
+  bool currentResetButtonState = (digitalRead(PIN_FACTORY_RESET) == LOW);
+  if (currentResetButtonState != lastResetButtonState)
+  {
+    lastResetButtonStateChange = millis();
+  }
+  else if (currentResetButtonState && millis() - lastResetButtonStateChange > 10000)
+  {
+    LOG_WARNING("Performing factory reset at user request!");
+    LMANConfig::instance->factoryReset();
+    ESP.restart();
+  }
+
+  lastResetButtonState = currentResetButtonState;
   vTaskDelay(100 / portTICK_PERIOD_MS);
 }
 
@@ -307,6 +362,8 @@ void setup()
   logger.SetUseDecorations(true);
   delay(50);
 
+  pinMode(PIN_FACTORY_RESET, INPUT_PULLUP);
+
   config.init();
   config.loadFromLittleFS();
 
@@ -318,8 +375,6 @@ void setup()
   xTaskCreatePinnedToCore(taskWiFiMqttHandler, "taskWiFiMqttHandler", 5000, NULL, 0, NULL, CONFIG_ARDUINO_RUNNING_CORE);
 
   lMan.init(&taskHandleSendDMXData, &dmx);
-  lMan.buttonPressMinTime = 80;
-  lMan.buttonPressMaxTime = 800;
 
   lMan.initDMXChannel(&LMANConfig::instance->channelConfigs[0]);
   lMan.initDMXChannel(&LMANConfig::instance->channelConfigs[1]);

@@ -7,7 +7,7 @@ function connectWebSocket() {
 
     socket.onmessage = function (event) {
         var json_data = JSON.parse(event.data);
-        console.log(json_data);
+        // console.log(json_data);
 
         if ("channels" in json_data) {
             for (let i = 0; i < 4; i++) {
@@ -93,9 +93,10 @@ function connectWebSocket() {
             } else {
                 if ($(`#${index}`).length) {
                     $(`#${index}`).val(value);
-                } else {
-                    console.log(`[ERROR] Trying to set value for element that doesn't exists: #${index}`);
                 }
+                // } else {
+                //     console.log(`[ERROR] Trying to set value for element that doesn't exists: #${index}`);
+                // }
             }
         });
     }
@@ -117,7 +118,6 @@ function sendLightUpdateFromSlider(slider) {
         "channel": $(slider).data('channel'),
         "value": parseInt(slider.value)
     };
-    console.log(message);
     socket.send(JSON.stringify(message));
 }
 
@@ -206,14 +206,6 @@ function showWifiSelectModal() {
     });
 }
 
-function doFactoryReset() {
-    $.get("/do_factory_reset", function () {
-        window.location = "/reboot";
-    }).fail(function () {
-        alert("Failed to perform factory reset!");
-    });
-}
-
 function showFactoryResetModal() {
     $("#factory_reset_modal").addClass("is-active");
 }
@@ -266,4 +258,34 @@ $(document).ready(function () {
     $('#mqtt_auth').change(handleMqttUsernamePasswordVisibilityState);
     connectWebSocket();
     setTimeout(connectionMonitor, 1000);
+
+    $('#config').submit(function (event) {
+        const valid_ids = [
+            $("#channel1_channel").val(),
+            $("#channel2_channel").val(),
+            $("#channel3_channel").val(),
+            $("#channel4_channel").val()
+        ];
+
+        // Verify that an ID has not been set that no config exists for.
+        if (!valid_ids.includes($("#button1_channel").val())) {
+            alert("Button 1 has invalid channel configured!");
+            event.preventDefault();
+        }
+
+        if (!valid_ids.includes($("#button2_channel").val())) {
+            alert("Button 2 has invalid channel configured!");
+            event.preventDefault();
+        }
+
+        if (!valid_ids.includes($("#button3_channel").val())) {
+            alert("Button 3 has invalid channel configured!");
+            event.preventDefault();
+        }
+
+        if (!valid_ids.includes($("#button4_channel").val())) {
+            alert("Button 4 has invalid channel configured!");
+            event.preventDefault();
+        }
+    });
 });

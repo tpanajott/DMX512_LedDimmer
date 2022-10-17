@@ -61,6 +61,9 @@ public:
     /// @brief Save current config file to LittleFS
     /// @return True if successful
     bool saveToLittleFS();
+    /// @brief Reset all values to default
+    /// @return True if successfuly saved to LittleFS
+    bool factoryReset();
     /// @brief The instance of the config manager
     static LMANConfig *instance;
 
@@ -73,11 +76,6 @@ public:
     /// @brief The pre-shared key for the WiFi
     std::string wifi_psk;
 
-    /// @brief How often to try to connect to WiFi
-    uint16_t wifi_retry_timeout_ms;
-    /// @brief Hwo long to wait after home assistant has sent "online"
-    /// before registring entities again
-    uint16_t home_assistant_wait_online_ms;
     /// @brief The base topic of home assistant, typically "homeassistant/"
     std::string home_assistant_base_topic;
     /// @brief Address to MQTT server

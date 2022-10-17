@@ -16,6 +16,11 @@ void DMXChannel::init(TaskHandle_t *dmxSendTask, DMXESPSerial *dmx, ChannelConfi
 
 void DMXChannel::setState(bool state)
 {
+  // Do nothing if this channel is disabled.
+  if (!this->config->enabled)
+  {
+    return;
+  }
   this->state = state;
   this->mqttSendUpdate = true;
   this->webSendUpdate = true;
@@ -24,6 +29,11 @@ void DMXChannel::setState(bool state)
 
 void DMXChannel::setLevel(uint8_t level)
 {
+  // Do nothing if this channel is disabled.
+  if (!this->config->enabled)
+  {
+    return;
+  }
   LOG_TRACE("Setting channel ", LOG_BOLD, this->config->channel, LOG_RESET_DECORATIONS, " to level ", LOG_BOLD, level);
   this->level = level;
   this->lastLevelChange = millis();
@@ -35,6 +45,11 @@ void DMXChannel::setLevel(uint8_t level)
 
 void DMXChannel::updateDMXData(bool sendUpdate)
 {
+  // Do nothing if this channel is disabled.
+  if (!this->config->enabled)
+  {
+    return;
+  }
   uint8_t newLevel = this->state ? this->level : 0;
   LOG_TRACE("Updating DMX channel ", LOG_BOLD, this->config->channel, LOG_RESET_DECORATIONS, " to value ", LOG_BOLD, newLevel);
   this->_dmx->write(this->config->channel, newLevel);
@@ -53,6 +68,11 @@ void DMXChannel::updateDMXData(bool sendUpdate)
 
 bool DMXChannel::stopAutoDimming()
 {
+  // Do nothing if this channel is disabled.
+  if (!this->config->enabled)
+  {
+    return true;
+  }
   try
   {
     LOG_TRACE("Stop auto-dimming requested!");
@@ -69,6 +89,11 @@ bool DMXChannel::stopAutoDimming()
 // Button functions
 void Button::addButtonEvent(bool state)
 {
+  // Do nothing if this channel is disabled.
+  if (!this->config->enabled)
+  {
+    return;
+  }
   LOG_TRACE("Adding new button event, new state: ", LOG_BOLD, state ? "ON" : "OFF");
   // Shift current events down the list
   this->buttonEvents[2] = this->buttonEvents[1];
@@ -83,6 +108,12 @@ void Button::addButtonEvent(bool state)
 
 void Button::updateState()
 {
+  // Do nothing if this button is disabled.
+  if (!this->config->enabled)
+  {
+    return;
+  }
+
   if (LightManager::instance)
   {
     // Invert read state as there is a PULLUP on the line.
@@ -217,9 +248,9 @@ void LightManager::taskProcessButtonEvents(void *param)
       for (std::list<Button>::iterator it = LightManager::instance->buttons.begin(); it != LightManager::instance->buttons.end(); ++it)
       {
         // Do initial filtering
-        if (!it->buttonEvents[0].handled && it->getTimeDelta(0, 1) >= LightManager::instance->buttonPressMinTime)
+        if (!it->buttonEvents[0].handled && it->getTimeDelta(0, 1) >= LMANConfig::instance->buttonPressMinTime)
         {
-          if (it->buttonEvents[0].state && it->getTimeDeltaNowLastState() >= LightManager::instance->buttonPressMaxTime && it->dmxChannel->state)
+          if (it->buttonEvents[0].state && it->getTimeDeltaNowLastState() >= LMANConfig::instance->buttonPressMaxTime && it->dmxChannel->state)
           {
             // State is high and has been for the max threshold time. Consider it a dimming event.
             // If a dimming task has been created, notify it and mark event as handled.
@@ -235,7 +266,7 @@ void LightManager::taskProcessButtonEvents(void *param)
               LOG_ERROR("Dimming event occuring but no task started!");
             }
           }
-          else if (!it->buttonEvents[0].state && it->buttonEvents[1].state && it->getTimeDelta(0, 1) <= LightManager::instance->buttonPressMaxTime)
+          else if (!it->buttonEvents[0].state && it->buttonEvents[1].state && it->getTimeDelta(0, 1) <= LMANConfig::instance->buttonPressMaxTime)
           {
             // State is low, previous state was high and the time between states
             // was lower than max and higher than min. This was a toggle press.

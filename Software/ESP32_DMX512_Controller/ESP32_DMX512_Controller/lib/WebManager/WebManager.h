@@ -20,12 +20,17 @@ public:
     static void handleIndexDataEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
     static void sendBaseData(AsyncWebSocketClient *client);
     static void taskSendStatusUpdates(void *param);
+    static void saveConfigFromWeb(AsyncWebServerRequest *request);
+    static void respondAvailableWiFiNetworks(AsyncWebServerRequest *request);
+    static void performFirmwareUpdate(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
 
 private:
     AsyncWebServer _server = AsyncWebServer(80);
     AsyncWebSocket _indexDataSocket = AsyncWebSocket("/index_data");
     PubSubClient *_mqttClient;
     unsigned long _doRebootAt;
+    bool _hasFirmwareUpdated = false;
+    bool _hasLITTLEFSUpdated = false;
 };
 
 #endif

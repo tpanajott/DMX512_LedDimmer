@@ -103,11 +103,6 @@ public:
   /// @param config The config object for the channel
   /// @return The created DMX channel object
   DMXChannel *initDMXChannel(ChannelConfig *config);
-  /// @brief The time in ms a button must have the same state for it to be considered valid
-  uint8_t buttonPressMinTime;
-  /// @brief The time max time in ms for a button to be high to be considered a "press".
-  /// After this time it will start dimming.
-  uint16_t buttonPressMaxTime;
   /// @brief The instance of the LightManager started with .init();
   static LightManager *instance;
   /// @brief Button interupt handler

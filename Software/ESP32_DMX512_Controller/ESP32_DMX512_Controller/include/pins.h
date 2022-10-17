@@ -6,3 +6,5 @@
 #define PIN_BUTTON_4 16
 
 #define PIN_DMX_DATA 17
+
+#define PIN_FACTORY_RESET 19
