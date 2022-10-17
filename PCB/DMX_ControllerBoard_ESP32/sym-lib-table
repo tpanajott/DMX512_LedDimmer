@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name "DMX_ControllerBoard-rescue")(type "Legacy")(uri "${KIPRJMOD}/DMX_ControllerBoard-rescue.lib")(options "")(descr ""))
+)

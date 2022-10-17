@@ -1,7 +1,10 @@
-                                // NodeMCU pinout
-#define STATUS_LED_PIN      12  // D6
-#define FACTORY_RESET_PIN   4   // D2
-#define BUTTON_1_PIN        13  // D7
-#define BUTTON_2_PIN        14  // D5
-#define BUTTON_3_PIN        9   // SD2
-#define BUTTON_4_PIN        10  // SD3
+#define PIN_ERROR_LED 18
+
+#define PIN_BUTTON_1 14
+#define PIN_BUTTON_2 13
+#define PIN_BUTTON_3 15
+#define PIN_BUTTON_4 16
+
+#define PIN_DMX_DATA 17
+
+#define PIN_FACTORY_RESET 19

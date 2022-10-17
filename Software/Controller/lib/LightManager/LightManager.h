@@ -1,81 +1,144 @@
-#ifndef LIGHT_MANAGER_H
-#define LIGHT_MANAGER_H
+#ifndef LIGHTMANAGER_H
+#define LIGHTMANAGER_H
 
+#include <ArduLog.h>
 #include <Arduino.h>
-#include <list>
 #include <ESPDMX.h>
-#include <PubSubClient.h>
+#include <LMANConfig.h>
+#include <freertos/semphr.h>
 
-struct _buttonEvent {
-    bool pressed = false;
-    unsigned long millis = 0;
+#include <list>
+#include <string>
+
+class DMXChannel
+{
+public:
+  void init(TaskHandle_t *dmxSendTask, DMXESPSerial *dmx, ChannelConfig *config);
+  ChannelConfig *config;
+  /// @brief The current dim level
+  uint8_t level;
+  /// @brief The current dimming direction. True = getting brighter, false = fading
+  bool dimmingDirection = true;
+  /// @brief The last light level change in ms
+  unsigned long lastLevelChange = 0;
+  /// @brief The target for the auto-dimming function.
+  uint8_t levelBeforeAutoDimming = 255;
+  /// @brief The target for auto-dimming.
+  uint8_t autoDimmingTarget = 0;
+  /// @brief Wether or not this channel is auto-dimming.
+  bool isAutoDimming = false;
+  /// @brief Wether or not to turn off light when the auto-dimming target has been reached.
+  bool turnOffWhenAutoDimComplete = false;
+  /// @brief Current state. True = output on, false = output off.
+  bool state;
+  /// @brief Wether the state has changed since last MQTT update was sent.
+  /// Set to true so that at first connection a state update is sent.
+  bool mqttSendUpdate = true;
+  bool webSendUpdate = false;
+  /// @brief Set the output state and update DMX
+  /// @param state The output state. true = on, false = off
+  void setState(bool state);
+  /// @brief Set the new dim level
+  /// @param level The level to set
+  void setLevel(uint8_t level);
+  /// @brief Update DMX data and cause a send out straight away.
+  /// @param sendUpdate Weather or not to send the update straight away or wait until next cycle.
+  void updateDMXData(bool sendUpdate);
+  /// @brief If auto-dimming is currently happening, stop it.
+  /// @return True if stop was successful
+  bool stopAutoDimming();
+
+private:
+  TaskHandle_t *_dmxSendTask;
+  DMXESPSerial *_dmx;
+  SemaphoreHandle_t _autoDimmingHandleMutex = NULL;
 };
 
-struct DimmerButton {
-    uint8_t id;
-    uint8_t channel = 1;
-    uint8 pin = 0;
-    uint8 min = 0;
-    uint8 max = 255;
-    uint8 dimLevel = 255;
-    uint8 dimLevelBeforeSmoothOff = 255;
-    uint8 autoDimTarget = 255;
-    uint8 autoDimmingSpeed = 1;
-    uint8 debounce_ms = 50;
-    unsigned long lastDimEvent = 0;
-    uint8_t dimmingSpeed = 5;
-    uint16_t holdPeriod = 800;
-    // Every button press that is longer than the minPressThreshold and shorter than the buttonPressThreshold is considered
-    // a press. If the button is held longer than the buttonPressThreshold is it considered to be held and the light
-    // should be dimmed if turned on.
-    uint16_t buttonPressThreshold = 800;
-    uint16_t buttonMinPressThreshold = 100;
-    // MQTT 
-    bool sendMqttUpdate = false;
-    uint16_t mqttSendWaitTime = 500; // Time to wait after last dim event before sending an MQTT update
-    // False: Dimming down.
-    // True: Dimming up.
-    bool direction = true;
-    bool outputState = false;
-    // PCB support 4 buttons. Should this button be enabled, ie. is it connected to anything.
-    // If not, setting enabled to false will stop processing of this button.
-    bool enabled = false;
-    bool hasChanged = false;
-    // Indicate that a new button event has occured.
-    bool hasButtonEvent = false;
-    bool isDimming = false; // Is this button set to dimming.
-    bool isAutoDimming = false; // Is autoDimming from MQTT/web command.
-    bool smoothOff = false; // Dim from current level to 0 smoothly.
-    char* name;
-    _buttonEvent _buttonEvents[3];
+struct ButtonEvent
+{
+  bool state = false;
+  bool handled = false;
+  unsigned long millis = 0;
 };
 
-class LightManager {
-    public:
-        //DimmerButton dimmerButtons[4];
-        std::list<DimmerButton> dimmerButtons;
-        void init(DMXESPSerial *dmx, PubSubClient *pubSubClient);
-        DimmerButton* initDimmerButton(uint8_t id, uint8_t pin, uint8_t min, uint8_t max, uint8_t channel, bool enabled, char *name);
-        void handleDimmerButtonEvent();
-        void loop();
-        void setLightLevel(DimmerButton *btn, uint8_t dimLevel);
-        void setAutoDimmingTarget(DimmerButton *btn, uint8_t dimLevel);
-        void setOutputState(DimmerButton *btn, bool outputState);
-        DimmerButton* getLightById(uint8_t id);
-        // The following two items are for ISR handeling of button presses
-        // Static pointer to instance of object
-        static LightManager *instance;
-        // Static forward function to forward ISR to instance
-        static void IRAM_ATTR ISRForwarder();
-    private:
-        DMXESPSerial *_dmx;
-        PubSubClient *_pubSubClient;
-        void _updateDimmerButtonStatus(DimmerButton *btn);
-        void _performDimmingOfLight(DimmerButton *btn);
-        void _performAutoDimmingOfLight(DimmerButton *btn);
-        void _performSmoothOff(DimmerButton *btn);
-        unsigned long _getButtonStateTimeDelta(DimmerButton *btn, uint8_t firstEventIndex, uint8_t secondEventIndex);
-        bool _getButtonState(DimmerButton *btn);
+class Button
+{
+public:
+  ButtonConfig *config;
+  /// @brief Wether the button is enabled or not.
+  bool enabled = true;
+  /// @brief The GPIO pin to read state for this button
+  uint8_t pin;
+  /// @brief The DMX channel used by this button
+  DMXChannel *dmxChannel;
+  /// @brief The last 3 button events
+  ButtonEvent buttonEvents[3];
+  /// @brief Add a new button event. Time of the event is set to current millis()
+  /// @param state The new state.
+  void addButtonEvent(bool state);
+  /// @brief Read current state and if changed, update state list
+  void updateState();
+  /// @brief Get the time difference between two button events.
+  /// @param firstEvent The index of the first event.
+  /// @param secondEvent The index of the second event.
+  /// @return The time difference between the two events in ms.
+  unsigned long getTimeDelta(uint8_t firstEvent, uint8_t secondEvent);
+  /// @brief Get the time difference between lats event and now.
+  /// @return The time in ms.
+  unsigned long getTimeDeltaNowLastState();
+};
+
+class LightManager
+{
+public:
+  /// @brief Start LightManager processing.
+  /// @param dmxSendTask Task handle to the last that needs to be notified of changes in DMX data.
+  /// @param dmx The DMX handler
+  void init(TaskHandle_t *dmxSendTask, DMXESPSerial *dmx);
+  /// @brief Initialize a button used for input and control over a DMX channel
+  /// @param buttonPin The GPIO pin used to read button state
+  /// @param buttonConfig The Button configuration from config manager
+  Button *initButton(uint8_t buttonPin, ButtonConfig *buttonConfig);
+  /// @brief Initiate a DMX channel
+  /// @param config The config object for the channel
+  /// @return The created DMX channel object
+  DMXChannel *initDMXChannel(ChannelConfig *config);
+  /// @brief The instance of the LightManager started with .init();
+  static LightManager *instance;
+  /// @brief Button interupt handler
+  static void IRAM_ATTR ISRForwarder();
+  TaskHandle_t taskHandleProcessButtonEvents;
+  static void taskProcessButtonEvents(void *param);
+  /// @brief Start auto-dimming to specified target. Starting from already set value.
+  /// @param dmxChannel The channel to auto-dim
+  /// @param level The level to dim to.
+  void autoDimTo(DMXChannel *dmxChannel, uint8_t level);
+  /// @brief Turn on light by auto-dimming to the previous level.
+  /// @param dmxChannel The DMX Channel to turn on.
+  /// @param level The requested level.
+  void autoDimOnToLevel(DMXChannel *dmxChannel, uint8_t level);
+  /// @brief Turn on light by auto-dimming to the previous level.
+  /// @param dmxChannel The DMX Channel to turn on.
+  void autoDimOn(DMXChannel *dmxChannel);
+  /// @brief Turn off light by auto-dimming to the previous level.
+  /// @param dmxChannel The DMX Channel to turn on.
+  void autoDimOff(DMXChannel *dmxChannel);
+  static void taskAutoDimDMXChannel(void *param);
+  /// @brief The list of DMX Channels in use
+  std::list<DMXChannel> dmxChannels;
+  /// @brief The list of active buttons
+  std::list<Button> buttons;
+
+private:
+  TaskHandle_t _taskHandleReadButtonStates;
+  static void _taskReadButtonStates(void *param);
+  TaskHandle_t _taskHandleDimLights;
+  static void _taskDimLights(void *param);
+  TaskHandle_t _taskHandleAutoDimLights;
+  static void _taskAutoDimLights(void *param);
+  TaskHandle_t *_dmxSendTask;
+  /// @brief The DMX handler
+  DMXESPSerial *_dmx;
 };
 
 #endif

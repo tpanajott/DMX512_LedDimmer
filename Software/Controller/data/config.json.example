@@ -1,0 +1,73 @@
+{
+    "wifi_hostname": "lman",
+    "wifi_ssid": "",
+    "wifi_psk": "",
+    "home_assistant_base_topic": "homeassistant/",
+    "mqtt_server": "",
+    "mqtt_port": 1883,
+    "mqtt_username": "",
+    "mqtt_password": "",
+    "buttonPressMinTime": 80,
+    "buttonPressMaxTime": 800,
+    "log_level": 1,
+    "channels": [
+        {
+            "name": "channel1",
+            "channel": 1,
+            "min": 0,
+            "max": 255,
+            "dimmingSpeed": 5,
+            "holdPeriod": 800,
+            "autoDimmingSpeed": 1,
+            "enabled": 0
+        },
+        {
+            "name": "channel2",
+            "channel": 2,
+            "min": 0,
+            "max": 255,
+            "dimmingSpeed": 5,
+            "holdPeriod": 800,
+            "autoDimmingSpeed": 1,
+            "enabled": 0
+        },
+        {
+            "name": "channel3",
+            "channel": 3,
+            "min": 0,
+            "max": 255,
+            "dimmingSpeed": 5,
+            "holdPeriod": 800,
+            "autoDimmingSpeed": 1,
+            "enabled": 0
+        },
+        {
+            "name": "channel4",
+            "channel": 4,
+            "min": 0,
+            "max": 255,
+            "dimmingSpeed": 5,
+            "holdPeriod": 800,
+            "autoDimmingSpeed": 1,
+            "enabled": 0
+        }
+    ],
+    "buttons": [
+        {
+            "enabled": 0,
+            "channel": 1
+        },
+        {
+            "enabled": 0,
+            "channel": 2
+        },
+        {
+            "enabled": 0,
+            "channel": 3
+        },
+        {
+            "enabled": 0,
+            "channel": 4
+        }
+    ]
+}
