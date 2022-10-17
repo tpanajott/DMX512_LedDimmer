@@ -367,7 +367,18 @@ void setup()
   config.init();
   config.loadFromLittleFS();
 
-  dmx.init(&Serial2, 5, 0);
+  // Find highest DMX-channel in use.
+  uint16_t higestDMXChannel = 0;
+  for (int i = 0; i < sizeof(LMANConfig::instance->channelConfigs) / sizeof(ChannelConfig); i++)
+  {
+    if (LMANConfig::instance->channelConfigs[i].enabled && LMANConfig::instance->channelConfigs[i].channel > higestDMXChannel)
+    {
+      higestDMXChannel = LMANConfig::instance->channelConfigs[i].channel + 1;
+    }
+  }
+  LOG_INFO("Initializing DMX-library with ", LOG_BOLD, higestDMXChannel, LOG_RESET_DECORATIONS " channels");
+  // Init with highest DMX-channel+1
+  dmx.init(&Serial2, higestDMXChannel, 0);
 
   pinMode(PIN_ERROR_LED, OUTPUT);
   xTaskCreatePinnedToCore(taskHandleErrorLed, "taskErrorLed", 5000, NULL, 1, &taskHandleErrorLedHandle, CONFIG_ARDUINO_RUNNING_CORE);
