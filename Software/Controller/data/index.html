@@ -125,7 +125,7 @@
                 <p>Are you sure you want to factory reset the device?</p>
             </section>
             <footer class="modal-card-foot">
-                <button class="button is-danger" onclick="doFactoryReset();">Factory Reset</button>
+                <a class="button is-danger" href="/do_factory_reset">Factory Reset</a>
                 <button class="button" onclick="cancelFactoryReset();">Cancel</button>
             </footer>
         </div>
@@ -143,9 +143,6 @@
         <div class="notification is-danger hidden" id="mqtt_connection_error">
             MQTT is not connected! Local control with buttons will still work.
         </div>
-        <div class="notification is-danger hidden" id="home_assistant_connection_error">
-            Home Assistant is not available on MQTT! Local control with buttons will still work.
-        </div>
 
         <form method="POST" action="/save_config" id="config">
             <div class="box">
@@ -155,13 +152,6 @@
                     <div class="control">
                         <input class="input" type="text" name="wifi_hostname" id="wifi_hostname"
                             placeholder="Device name" required>
-                    </div>
-                </div>
-                <div class="field">
-                    <label class="label">Home Assistant online wait period in milliseconds</label>
-                    <div class="control">
-                        <input class="input" type="number" name="home_assistant_online_wait_period_ms"
-                            id="home_assistant_online_wait_period_ms" placeholder="Home Assistant wait period" required>
                     </div>
                 </div>
                 <div class="field">
@@ -203,11 +193,311 @@
                             required>
                     </div>
                 </div>
+            </div>
+
+            <div class="box">
                 <div class="field">
-                    <label class="label">WiFi retry timeout in milliseconds</label>
+                    <h5 class="title is-5">General</h5>
+                </div>
+                <div class="field">
+                    <label class="label">Minimum button press time (in ms)</label>
                     <div class="control">
-                        <input class="input" type="number" name="wifi_retry_timeout_ms" id="wifi_retry_timeout_ms"
-                            placeholder="WiFi retry timeout" required>
+                        <input class="input" type="number" min="1" max="255" name="button_min_press"
+                            id="button_min_press" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">Time before dimming (in ms)</label>
+                    <div class="control">
+                        <input class="input" type="number" min="1" max="2048" name="button_max_press"
+                            id="button_max_press" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="box">
+                <div class="field">
+                    <h5 class="title is-5">DMX Channels</h5>
+                </div>
+                <div class="columns">
+                    <div class="column">
+                        <h5 class="title is-5" id="channel1_name_title"></h5>
+                        <div class="field is-grouped is-grouped-multiline">
+                            <div class="control">
+                                <div class="tags has-addons">
+                                    <span class="tag is-dark">Current Output</span>
+                                    <span class="tag is-info" id="channel1_output"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <input type="range" min="0" max="255" value="0" id="channel1_output_slider"
+                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                        </div>
+                        <div class="field">
+                            <label class="checkbox">
+                                <input type="checkbox" name="channel1_enabled" id="channel1_enabled">
+                                Enabled
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label class="label">Name</label>
+                            <div class="control">
+                                <input class="input" type="text" name="channel1_name" id="channel1_name" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Channel</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel1_channel" id="channel1_channel" min="1"
+                                    max="512" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Minimum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel1_min" id="channel1_min" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel1_max" id="channel1_max" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Dimming Speed (ms between dimming)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel1_dimmingSpeed"
+                                    id="channel1_dimmingSpeed" min=1 max=25 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Auto-Dimming Speed (ms between dimming)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel1_autoDimmingSpeed"
+                                    id="channel1_autoDimmingSpeed" min=0 max=15 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Hold Period (in ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel1_holdPeriod" id="channel1_holdPeriod"
+                                    min=0 max=1500 required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <h5 class="title is-5" id="channel2_name_title"></h5>
+                        <div class="field is-grouped is-grouped-multiline">
+                            <div class="control">
+                                <div class="tags has-addons">
+                                    <span class="tag is-dark">Current Output</span>
+                                    <span class="tag is-info" id="channel2_output"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <input type="range" min="0" max="255" value="0" id="channel2_output_slider"
+                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                        </div>
+                        <div class="field">
+                            <label class="checkbox">
+                                <input type="checkbox" name="channel2_enabled" id="channel2_enabled">
+                                Enabled
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label class="label">Name</label>
+                            <div class="control">
+                                <input class="input" type="text" name="channel2_name" id="channel2_name" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Channel</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel2_channel" id="channel2_channel" min="1"
+                                    max="512" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Minimum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel2_min" id="channel2_min" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel2_max" id="channel2_max" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="label">Dimming Speed (ms between dimming)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel2_dimmingSpeed"
+                                    id="channel2_dimmingSpeed" min=1 max=25 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Auto-Dimming Speed (ms between dimming)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel2_autoDimmingSpeed"
+                                    id="channel2_autoDimmingSpeed" min=0 max=15 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Hold Period (in ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel2_holdPeriod" id="channel2_holdPeriod"
+                                    min=0 max=1500 required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <h5 class="title is-5" id="channel3_name_title"></h5>
+                        <div class="field is-grouped is-grouped-multiline">
+                            <div class="control">
+                                <div class="tags has-addons">
+                                    <span class="tag is-dark">Current Output</span>
+                                    <span class="tag is-info" id="channel3_output"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <input type="range" min="0" max="255" value="0" id="channel3_output_slider"
+                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                        </div>
+                        <div class="field">
+                            <label class="checkbox">
+                                <input type="checkbox" name="channel3_enabled" id="channel3_enabled">
+                                Enabled
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label class="label">Name</label>
+                            <div class="control">
+                                <input class="input" type="text" name="channel3_name" id="channel3_name" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Channel</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel3_channel" id="channel3_channel" min="1"
+                                    max="512" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Minimum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel3_min" id="channel3_min" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel3_max" id="channel3_max" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="label">Dimming Speed (ms between dimming)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel3_dimmingSpeed"
+                                    id="channel3_dimmingSpeed" min=1 max=25 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Auto-Dimming Speed (ms between dimming)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel3_autoDimmingSpeed"
+                                    id="channel3_autoDimmingSpeed" min=0 max=15 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Hold Period (in ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel3_holdPeriod" id="channel3_holdPeriod"
+                                    min=0 max=1500 required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <h5 class="title is-5" id="channel4_name_title"></h5>
+                        <div class="field is-grouped is-grouped-multiline">
+                            <div class="control">
+                                <div class="tags has-addons">
+                                    <span class="tag is-dark">Current Output</span>
+                                    <span class="tag is-info" id="channel4_output"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <input type="range" min="0" max="255" value="0" id="channel4_output_slider"
+                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
+                        </div>
+                        <div class="field">
+                            <label class="checkbox">
+                                <input type="checkbox" name="channel4_enabled" id="channel4_enabled">
+                                Enabled
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label class="label">Name</label>
+                            <div class="control">
+                                <input class="input" type="text" name="channel4_name" id="channel4_name" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Channel</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel4_channel" id="channel4_channel" min="1"
+                                    max="512" required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Minimum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel4_min" id="channel4_min" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Maximum Level:</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel4_max" id="channel4_max" min=1 max=255
+                                    required>
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="label">Dimming Speed (ms between dimming)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel4_dimmingSpeed"
+                                    id="channel4_dimmingSpeed" min=1 max=25 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Auto-Dimming Speed (ms between dimming)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel4_autoDimmingSpeed"
+                                    id="channel4_autoDimmingSpeed" min=0 max=15 required>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label">Hold Period (in ms)</label>
+                            <div class="control">
+                                <input class="input" type="number" name="channel4_holdPeriod" id="channel4_holdPeriod"
+                                    min=0 max=1500 required>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -215,19 +505,7 @@
             <div class="box">
                 <div class="columns">
                     <div class="column">
-                        <h5 class="title is-5" id="button1_name_title"></h5>
-                        <div class="field is-grouped is-grouped-multiline">
-                            <div class="control">
-                                <div class="tags has-addons">
-                                    <span class="tag is-dark">Current Output</span>
-                                    <span class="tag is-info" id="button1_output"></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <input type="range" min="0" max="255" value="0" id="button1_output_slider"
-                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
-                        </div>
+                        <h5 class="title is-5" id="button1_name_title">Button 1</h5>
                         <div class="field">
                             <label class="checkbox">
                                 <input type="checkbox" name="button1_enabled" id="button1_enabled">
@@ -235,82 +513,15 @@
                             </label>
                         </div>
                         <div class="field">
-                            <label class="label">Name</label>
-                            <div class="control">
-                                <input class="input" type="text" name="button1_name" id="button1_name" required>
-                            </div>
-                        </div>
-                        <div class="field">
                             <label class="label">Channel</label>
                             <div class="control">
                                 <input class="input" type="number" name="button1_channel" id="button1_channel" min="1"
-                                    max="15" required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Maximum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button1_max" id="button1_max" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Minimum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button1_min" id="button1_min" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Dimming speed</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button1_dimmingSpeed" id="button1_dimmingSpeed"
-                                    min=5 max=25 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Auto-Dimming speed</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button1_autoDimmingSpeed"
-                                    id="button1_autoDimmingSpeed" min=0 max=15 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Hold Period</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button1_holdPeriod" id="button1_holdPeriod"
-                                    min=0 max=1500 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Min button hold period (ms)</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button1_minPressMillis"
-                                    id="button1_minPressMillis" min=0 max=150 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Max button hold period (ms)</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button1_maxPressMillis"
-                                    id="button1_maxPressMillis" min=0 max=1500 required>
+                                    max="512" required>
                             </div>
                         </div>
                     </div>
                     <div class="column">
-                        <h5 class="title is-5" id="button2_name_title"></h5>
-                        <div class="field is-grouped is-grouped-multiline">
-                            <div class="control">
-                                <div class="tags has-addons">
-                                    <span class="tag is-dark">Current Output</span>
-                                    <span class="tag is-info" id="button2_output"></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <input type="range" min="0" max="255" value="0" id="button2_output_slider"
-                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
-                        </div>
+                        <h5 class="title is-5" id="button2_name_title">Button 2</h5>
                         <div class="field">
                             <label class="checkbox">
                                 <input type="checkbox" name="button2_enabled" id="button2_enabled">
@@ -318,82 +529,15 @@
                             </label>
                         </div>
                         <div class="field">
-                            <label class="label">Name</label>
-                            <div class="control">
-                                <input class="input" type="text" name="button2_name" id="button2_name" required>
-                            </div>
-                        </div>
-                        <div class="field">
                             <label class="label">Channel</label>
                             <div class="control">
                                 <input class="input" type="number" name="button2_channel" id="button2_channel" min="1"
-                                    max="15" required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Maximum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button2_max" id="button2_max" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Minimum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button2_min" id="button2_min" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Dimming speed</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button2_dimmingSpeed" id="button2_dimmingSpeed"
-                                    min=5 max=25 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Auto-Dimming speed</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button2_autoDimmingSpeed"
-                                    id="button2_autoDimmingSpeed" min=0 max=15 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Hold Period</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button2_holdPeriod" id="button2_holdPeriod"
-                                    min=0 max=1500 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Min button hold period (ms)</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button2_minPressMillis"
-                                    id="button2_minPressMillis" min=0 max=150 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Max button hold period (ms)</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button2_maxPressMillis"
-                                    id="button2_maxPressMillis" min=0 max=1500 required>
+                                    max="512" required>
                             </div>
                         </div>
                     </div>
                     <div class="column">
-                        <h5 class="title is-5" id="button3_name_title"></h5>
-                        <div class="field is-grouped is-grouped-multiline">
-                            <div class="control">
-                                <div class="tags has-addons">
-                                    <span class="tag is-dark">Current Output</span>
-                                    <span class="tag is-info" id="button3_output"></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <input type="range" min="0" max="255" value="0" id="button3_output_slider"
-                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
-                        </div>
+                        <h5 class="title is-5" id="button3_name_title">Button 3</h5>
                         <div class="field">
                             <label class="checkbox">
                                 <input type="checkbox" name="button3_enabled" id="button3_enabled">
@@ -401,82 +545,15 @@
                             </label>
                         </div>
                         <div class="field">
-                            <label class="label">Name</label>
-                            <div class="control">
-                                <input class="input" type="text" name="button3_name" id="button3_name" required>
-                            </div>
-                        </div>
-                        <div class="field">
                             <label class="label">Channel</label>
                             <div class="control">
                                 <input class="input" type="number" name="button3_channel" id="button3_channel" min="1"
-                                    max="15" required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Maximum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button3_max" id="button3_max" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Minimum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button3_min" id="button3_min" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Dimming speed</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button3_dimmingSpeed" id="button3_dimmingSpeed"
-                                    min=5 max=25 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Auto-Dimming speed</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button3_autoDimmingSpeed"
-                                    id="button3_autoDimmingSpeed" min=0 max=15 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Hold Period</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button3_holdPeriod" id="button3_holdPeriod"
-                                    min=0 max=1500 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Min button hold period (ms)</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button3_minPressMillis"
-                                    id="button3_minPressMillis" min=0 max=150 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Max button hold period (ms)</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button3_maxPressMillis"
-                                    id="button3_maxPressMillis" min=0 max=1500 required>
+                                    max="512" required>
                             </div>
                         </div>
                     </div>
                     <div class="column">
-                        <h5 class="title is-5" id="button4_name_title"></h5>
-                        <div class="field is-grouped is-grouped-multiline">
-                            <div class="control">
-                                <div class="tags has-addons">
-                                    <span class="tag is-dark">Current Output</span>
-                                    <span class="tag is-info" id="button4_output"></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <input type="range" min="0" max="255" value="0" id="button4_output_slider"
-                                onchange="sendLightUpdateFromSlider(this);" style="width: 100%;">
-                        </div>
+                        <h5 class="title is-5" id="button4_name_title">Button 4</h5>
                         <div class="field">
                             <label class="checkbox">
                                 <input type="checkbox" name="button4_enabled" id="button4_enabled">
@@ -484,65 +561,10 @@
                             </label>
                         </div>
                         <div class="field">
-                            <label class="label">Name</label>
-                            <div class="control">
-                                <input class="input" type="text" name="button4_name" id="button4_name" required>
-                            </div>
-                        </div>
-                        <div class="field">
                             <label class="label">Channel</label>
                             <div class="control">
                                 <input class="input" type="number" name="button4_channel" id="button4_channel" min="1"
-                                    max="15" required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Maximum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button4_max" id="button4_max" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Minimum Level:</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button4_min" id="button4_min" min=1 max=255
-                                    required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Dimming speed</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button4_dimmingSpeed" id="button4_dimmingSpeed"
-                                    min=5 max=25 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Auto-Dimming speed</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button4_autoDimmingSpeed"
-                                    id="button4_autoDimmingSpeed" min=0 max=15 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Hold Period</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button4_holdPeriod" id="button4_holdPeriod"
-                                    min=0 max=1500 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Min button hold period (ms)</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button4_minPressMillis"
-                                    id="button4_minPressMillis" min=0 max=150 required>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label class="label">Max button hold period (ms)</label>
-                            <div class="control">
-                                <input class="input" type="number" name="button4_maxPressMillis"
-                                    id="button4_maxPressMillis" min=0 max=1500 required>
+                                    max="512" required>
                             </div>
                         </div>
                     </div>
@@ -557,12 +579,6 @@
                             <div class="tags has-addons">
                                 <span class="tag is-dark">MQTT Status</span>
                                 <span class="tag is-info" id="mqtt_status"></span>
-                            </div>
-                        </div>
-                        <div class="control">
-                            <div class="tags has-addons">
-                                <span class="tag is-dark">Home Assistant Status</span>
-                                <span class="tag is-info" id="home_assistant_status"></span>
                             </div>
                         </div>
                     </div>
@@ -590,8 +606,8 @@
                 </div>
                 <div class="field">
                     <label class="checkbox">
-                        <input type="checkbox" id="mqtt_auth" name="mqtt_auth">
-                        MQTT Authentication
+                        <input type="checkbox" name="mqtt_auth" id="mqtt_auth">
+                        Use MQTT authentication?
                     </label>
                 </div>
                 <div class="field" id="mqtt_username_field">
