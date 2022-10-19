@@ -148,7 +148,7 @@ void loop() {
     }
     PWM16B(dimLevel);
 
-    if(lastPacket > 500) {
+    if(lastPacket > 2000) {
       digitalWrite(RS485_ERROR_PIN, HIGH);
     } else {
       digitalWrite(RS485_ERROR_PIN, LOW);

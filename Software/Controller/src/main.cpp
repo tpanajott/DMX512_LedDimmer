@@ -41,6 +41,9 @@ void taskHandleErrorLed(void *param)
     else if (!mqttClient.connected())
     {
       digitalWrite(PIN_ERROR_LED, (millis() / 500) % 2 == 0);
+    } else {
+      // Turn off light if no error exists
+      digitalWrite(PIN_ERROR_LED, 0);
     }
     vTaskDelay(100 / portTICK_PERIOD_MS);
   }
