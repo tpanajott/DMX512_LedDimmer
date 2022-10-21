@@ -14,7 +14,7 @@
         {
             "name": "channel1",
             "channel": 1,
-            "min": 0,
+            "min": 1,
             "max": 255,
             "dimmingSpeed": 5,
             "holdPeriod": 800,
@@ -24,7 +24,7 @@
         {
             "name": "channel2",
             "channel": 2,
-            "min": 0,
+            "min": 1,
             "max": 255,
             "dimmingSpeed": 5,
             "holdPeriod": 800,
@@ -34,7 +34,7 @@
         {
             "name": "channel3",
             "channel": 3,
-            "min": 0,
+            "min": 1,
             "max": 255,
             "dimmingSpeed": 5,
             "holdPeriod": 800,
@@ -44,7 +44,7 @@
         {
             "name": "channel4",
             "channel": 4,
-            "min": 0,
+            "min": 1,
             "max": 255,
             "dimmingSpeed": 5,
             "holdPeriod": 800,

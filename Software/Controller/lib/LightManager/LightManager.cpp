@@ -213,6 +213,7 @@ void LightManager::_taskReadButtonStates(void *param)
   {
     if (ulTaskNotifyTake(pdTRUE, portMAX_DELAY))
     {
+      delay(5); // Leave 5 seconds for button to quiet down. Basic stupid debounce.
       if (LightManager::instance)
       {
         for (std::list<Button>::iterator it = LightManager::instance->buttons.begin(); it != LightManager::instance->buttons.end(); ++it)

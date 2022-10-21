@@ -28,6 +28,9 @@ void WebManager::init(PubSubClient *mqttClient)
     this->_server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request)
                      { request->send(LittleFS, "/update.html"); });
 
+    this->_server.on("/raw_config", HTTP_GET, [](AsyncWebServerRequest *request)
+                     { request->send(LittleFS, "/config.json"); });
+
     this->_server.on("/connection_test", HTTP_GET, [](AsyncWebServerRequest *request)
                      { request->send(200, "text/plain", "OK"); });
 
@@ -80,7 +83,7 @@ void WebManager::sendBaseData(AsyncWebSocketClient *client)
     JsonArray channelData = json.createNestedArray("channels");
     for (std::list<DMXChannel>::iterator it = LightManager::instance->dmxChannels.begin(); it != LightManager::instance->dmxChannels.end(); ++it)
     {
-        StaticJsonDocument<256> doc;
+        JsonObject doc = channelData.createNestedObject();
         doc["name"] = it->config->name;
         doc["enabled"] = it->config->enabled ? 1 : 0;
         doc["channel"] = it->config->channel;
@@ -91,22 +94,19 @@ void WebManager::sendBaseData(AsyncWebSocketClient *client)
         doc["holdPeriod"] = it->config->holdPeriod;
         doc["level"] = it->level;
         doc["state"] = it->state ? 1 : 0;
-        channelData.add(doc);
     }
 
     JsonArray buttonData = json.createNestedArray("buttons");
     for (std::list<Button>::iterator it = LightManager::instance->buttons.begin(); it != LightManager::instance->buttons.end(); ++it)
     {
-        StaticJsonDocument<256> doc;
-
+        JsonObject doc = buttonData.createNestedObject();
         doc["channel"] = it->config->channel;
         doc["enabled"] = it->config->enabled ? 1 : 0;
-        buttonData.add(doc);
     }
 
     LOG_TRACE("Serializing indexData BaseData");
     char json_data[2048];
-    serializeJsonPretty(json, json_data);
+    serializeJson(json, json_data);
     LOG_TRACE("Sending indexData BaseData");
     client->printf(json_data);
 }

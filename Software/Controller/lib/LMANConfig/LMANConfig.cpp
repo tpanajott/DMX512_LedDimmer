@@ -77,8 +77,9 @@ bool LMANConfig::loadFromLittleFS()
         return false;
     }
 
-    StaticJsonDocument<3000> doc;
+    StaticJsonDocument<2048> doc;
     DeserializationError error = deserializeJson(doc, configFile);
+    configFile.close();
     if (error)
     {
         LOG_ERROR("Failed to deserialize config.json");
@@ -122,8 +123,8 @@ bool LMANConfig::loadFromLittleFS()
     for (int i = 0; i < btnConfigs.size(); i++)
     {
         LOG_INFO("Loading button ", LOG_BOLD, i);
-        this->buttonConfigs[i].channel = btnConfigs[i]["channel"].as<uint8_t>() | 1;
-        this->buttonConfigs[i].enabled = (btnConfigs[i]["enabled"].as<uint8_t>() | 0) == 1;
+        this->buttonConfigs[i].channel = btnConfigs[i]["channel"].as<uint8_t>();
+        this->buttonConfigs[i].enabled = btnConfigs[i]["enabled"].as<uint8_t>() == 1;
     }
 
     LOG_INFO("Config data loaded.");
@@ -211,6 +212,7 @@ bool LMANConfig::saveToLittleFS()
     {
         LOG_INFO("Saved config file.");
     }
+    config_file.close();
 
     return true;
 }
