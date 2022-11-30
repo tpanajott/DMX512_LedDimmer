@@ -26,6 +26,9 @@ public:
     /// @brief Return the base topic where all other sub-topics for this channel exists
     /// @return MQTT Topic
     std::string getBaseTopic();
+    /// @brief Return the unique MQTT name of this channel
+    /// @return Unique Name
+    std::string getUniqueName();
     /// @brief Return the topic where state updates of this channel should be sent
     /// @return MQTT Topic
     std::string getStateTopic();
@@ -67,6 +70,7 @@ public:
     /// @brief The instance of the config manager
     static LMANConfig *instance;
 
+    /// @brief The logging level set for runtime
     uint8_t logging_level;
 
     /// @brief The hostname of this device
@@ -76,6 +80,8 @@ public:
     /// @brief The pre-shared key for the WiFi
     std::string wifi_psk;
 
+    /// @brief The time (in ms) to wait after home assistant sent "online" before re-registring entities
+    uint16_t home_assistant_state_change_wait;
     /// @brief The base topic of home assistant, typically "homeassistant/"
     std::string home_assistant_base_topic;
     /// @brief Address to MQTT server

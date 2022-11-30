@@ -13,9 +13,18 @@ std::string ChannelConfig::getBaseTopic()
         this->_baseTopic.append("light/");
         this->_baseTopic.append(LMANConfig::instance->wifi_hostname);
         this->_baseTopic.append("/");
-        this->_baseTopic.append(this->name);
+        this->_baseTopic.append("channel");
+        this->_baseTopic.append(std::to_string(this->channel));
     }
     return this->_baseTopic;
+}
+
+std::string ChannelConfig::getUniqueName()
+{
+    std::string uniqueName = LMANConfig::instance->wifi_hostname;
+    uniqueName.append("-");
+    uniqueName.append(this->name);
+    return uniqueName;
 }
 
 std::string ChannelConfig::getCmdTopic()
@@ -95,6 +104,7 @@ bool LMANConfig::loadFromLittleFS()
     ArduLog::getInstance()->SetLogLevel(static_cast<ArduLogLevel>(this->logging_level));
 
     this->home_assistant_base_topic = doc["home_assistant_base_topic"] | "homeassistant/";
+    this->home_assistant_state_change_wait = doc["home_assistant_state_change_wait"].as<uint16_t>();
 
     this->buttonPressMinTime = doc["buttonPressMinTime"] | 80;
     this->buttonPressMaxTime = doc["buttonPressMaxTime"] | 800;
@@ -139,6 +149,7 @@ bool LMANConfig::saveToLittleFS()
     config_json["wifi_ssid"] = this->wifi_ssid.c_str();
     config_json["wifi_psk"] = this->wifi_psk.c_str();
     config_json["home_assistant_base_topic"] = this->home_assistant_base_topic.c_str();
+    config_json["home_assistant_state_change_wait"] = this->home_assistant_state_change_wait;
     config_json["mqtt_server"] = this->mqtt_server.c_str();
     config_json["mqtt_port"] = this->mqtt_port;
     config_json["mqtt_username"] = this->mqtt_username;

@@ -73,6 +73,7 @@ void WebManager::sendBaseData(AsyncWebSocketClient *client)
     json["mqtt_username"] = LMANConfig::instance->mqtt_username.c_str();
     json["mqtt_psk"] = LMANConfig::instance->mqtt_password.c_str();
     json["mqtt_base_topic"] = LMANConfig::instance->home_assistant_base_topic.c_str();
+    json["home_assistant_state_change_wait"] = LMANConfig::instance->home_assistant_state_change_wait;
     json["mqtt_status"] = WebManager::instance->_mqttClient->connected() ? "Connected" : "DISCONNECTED";
     json["log_level"] = LMANConfig::instance->logging_level;
 
@@ -253,6 +254,7 @@ void WebManager::saveConfigFromWeb(AsyncWebServerRequest *request)
     LMANConfig::instance->mqtt_username = request->arg("mqtt_username").c_str();
     LMANConfig::instance->mqtt_password = request->arg("mqtt_password").c_str();
     LMANConfig::instance->home_assistant_base_topic = request->arg("mqtt_base_topic").c_str();
+    LMANConfig::instance->home_assistant_state_change_wait = request->arg("home_assistant_state_change_wait").toInt();
 
     LMANConfig::instance->buttonPressMaxTime = request->arg("button_max_press").toInt();
     LMANConfig::instance->buttonPressMinTime = request->arg("button_min_press").toInt();

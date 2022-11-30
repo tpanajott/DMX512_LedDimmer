@@ -118,10 +118,19 @@ void Button::updateState()
   {
     // Invert read state as there is a PULLUP on the line.
     bool currentButtonState = !digitalRead(this->pin);
-    if (currentButtonState != this->buttonEvents[0].state)
+    // Check that the current state is not the same as already confirmed
+    // AND that the state is not the same as the last read state.
+    if (currentButtonState != this->buttonEvents[0].state && currentButtonState != this->_currentButtonState.state)
     {
-      this->addButtonEvent(currentButtonState);
-      xTaskNotifyGive(LightManager::instance->taskHandleProcessButtonEvents);
+      this->_currentButtonState.millis = millis();
+      this->_currentButtonState.state = currentButtonState;
+      this->_currentButtonState.handled = false;
+    }
+    else if (!this->_currentButtonState.handled && currentButtonState == this->_currentButtonState.state && millis() - this->_currentButtonState.millis >= LMANConfig::instance->buttonPressMinTime)
+    {
+      // Current state is not handled and it is confirmed as a read state has been the same for button min press time
+      this->addButtonEvent(this->_currentButtonState.state);
+      this->_currentButtonState.handled = true;
     }
   }
   else
@@ -173,14 +182,6 @@ Button *LightManager::initButton(uint8_t buttonPin, ButtonConfig *buttonConfig)
   newBtn.buttonEvents[1].handled = true;
   newBtn.buttonEvents[2].handled = true;
   pinMode(buttonPin, INPUT_PULLUP);
-  if (buttonConfig->enabled)
-  {
-    attachInterrupt(buttonPin, LightManager::ISRForwarder, CHANGE);
-  }
-  else
-  {
-    LOG_WARNING("Button on pin ", LOG_BOLD, buttonPin, LOG_RESET_DECORATIONS, " not enabled. Will not enabled interrupt!");
-  }
   this->buttons.push_back(newBtn);
   return &this->buttons.back();
 }
@@ -201,7 +202,7 @@ void LightManager::init(TaskHandle_t *dmxSendTask, DMXESPSerial *dmx)
   this->_dmxSendTask = dmxSendTask;
   this->_dmx = dmx;
   xTaskCreatePinnedToCore(_taskReadButtonStates, "taskReadButtonStates", 5000, NULL, 1, &this->_taskHandleReadButtonStates, CONFIG_ARDUINO_RUNNING_CORE);
-  xTaskCreatePinnedToCore(taskProcessButtonEvents, "taskProcessButtonEvents", 5000, NULL, 1, &this->taskHandleProcessButtonEvents, CONFIG_ARDUINO_RUNNING_CORE);
+  xTaskCreatePinnedToCore(taskProcessButtonEvents, "taskProcessButtonEvents", 5000, NULL, 1, NULL, CONFIG_ARDUINO_RUNNING_CORE);
   xTaskCreatePinnedToCore(_taskDimLights, "taskDimLights", 5000, NULL, 1, &this->_taskHandleDimLights, CONFIG_ARDUINO_RUNNING_CORE);
   xTaskCreatePinnedToCore(_taskAutoDimLights, "taskAutoDimLights", 5000, NULL, 1, &this->_taskHandleAutoDimLights, CONFIG_ARDUINO_RUNNING_CORE);
 }
@@ -209,32 +210,35 @@ void LightManager::init(TaskHandle_t *dmxSendTask, DMXESPSerial *dmx)
 void LightManager::_taskReadButtonStates(void *param)
 {
   LOG_INFO("Started _taskReadButtonStates");
+
+  uint8_t loopDelay = LMANConfig::instance->buttonPressMinTime;
+  // Set the loop delay so that at least 3 readings will be done to determine
+  // a state, if the value is to low set reading interval to 5 ms
+  if (loopDelay / 3 >= 5)
+  {
+    loopDelay = loopDelay / 3;
+  }
+  else
+  {
+    loopDelay = 5;
+  }
+  LOG_DEBUG("Will poll button states every ", LOG_BOLD, loopDelay, LOG_RESET_DECORATIONS, " ms");
+
   for (;;)
   {
-    if (ulTaskNotifyTake(pdTRUE, portMAX_DELAY))
+    vTaskDelay(loopDelay / portTICK_PERIOD_MS);
+    if (LightManager::instance)
     {
-      delay(5); // Leave 5 seconds for button to quiet down. Basic stupid debounce.
-      if (LightManager::instance)
+      for (Button &btn : LightManager::instance->buttons)
       {
-        for (Button &btn : LightManager::instance->buttons)
-        {
-          btn.updateState();
-        }
-      }
-      else
-      {
-        LOG_ERROR(
-            "Trying to read button states event though no LightManager::instance is set!");
+        btn.updateState();
       }
     }
-  }
-}
-
-void IRAM_ATTR LightManager::ISRForwarder()
-{
-  if (LightManager::instance && LightManager::instance->_taskHandleReadButtonStates)
-  {
-    vTaskNotifyGiveFromISR(LightManager::instance->_taskHandleReadButtonStates, NULL);
+    else
+    {
+      LOG_ERROR(
+          "Trying to read button states event though no LightManager::instance is set!");
+    }
   }
 }
 

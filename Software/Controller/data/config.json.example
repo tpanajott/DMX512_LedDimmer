@@ -3,6 +3,7 @@
     "wifi_ssid": "",
     "wifi_psk": "",
     "home_assistant_base_topic": "homeassistant/",
+    "home_assistant_state_change_wait": 15000,
     "mqtt_server": "",
     "mqtt_port": 1883,
     "mqtt_username": "",

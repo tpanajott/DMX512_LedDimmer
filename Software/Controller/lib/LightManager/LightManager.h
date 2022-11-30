@@ -86,6 +86,10 @@ public:
   /// @brief Get the time difference between lats event and now.
   /// @return The time in ms.
   unsigned long getTimeDeltaNowLastState();
+
+private:
+  /// @brief The data used to keep track of debouncing.
+  ButtonEvent _currentButtonState;
 };
 
 class LightManager
@@ -105,9 +109,8 @@ public:
   DMXChannel *initDMXChannel(ChannelConfig *config);
   /// @brief The instance of the LightManager started with .init();
   static LightManager *instance;
-  /// @brief Button interupt handler
-  static void IRAM_ATTR ISRForwarder();
-  TaskHandle_t taskHandleProcessButtonEvents;
+  static void taskPollButtonState();
+  /// @brief When a button event has occured, perform the needed actions.
   static void taskProcessButtonEvents(void *param);
   /// @brief Start auto-dimming to specified target. Starting from already set value.
   /// @param dmxChannel The channel to auto-dim
