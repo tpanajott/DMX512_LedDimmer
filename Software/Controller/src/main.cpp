@@ -8,6 +8,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <WebManager.h>
+#include <version.h>
 
 ArduLog logger;
 LMANConfig config;
@@ -235,6 +236,7 @@ void registerToMqtt()
       device["name"] = LMANConfig::instance->wifi_hostname;
       device["mf"] = "Tim P";
       device["mdl"] = "DMX512 Controller";
+      device["sw_version"] = DMX512_SW_VERSION;
       JsonArray connections = device.createNestedArray("cns");
       JsonArray mac_address = connections.createNestedArray();
       mac_address.add("mac");
