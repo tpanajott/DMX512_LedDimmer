@@ -122,12 +122,14 @@ void Button::updateState()
     // AND that the state is not the same as the last read state.
     if (currentButtonState != this->buttonEvents[0].state && currentButtonState != this->_currentButtonState.state)
     {
+      LOG_DEBUG("(", millis(), ") ", "New state ", LOG_BOLD, currentButtonState ? "PRESSED" : "DEPRESSED", LOG_RESET_DECORATIONS, " for channel ", LOG_BOLD, this->config->channel);
       this->_currentButtonState.millis = millis();
       this->_currentButtonState.state = currentButtonState;
       this->_currentButtonState.handled = false;
     }
     else if (!this->_currentButtonState.handled && currentButtonState == this->_currentButtonState.state && millis() - this->_currentButtonState.millis >= LMANConfig::instance->buttonPressMinTime)
     {
+      LOG_DEBUG("(", millis(), ") ", "New state ", LOG_BOLD, currentButtonState ? "PRESSED" : "DEPRESSED", LOG_RESET_DECORATIONS, " confirmed for channel ", LOG_BOLD, this->config->channel);
       // Current state is not handled and it is confirmed as a read state has been the same for button min press time
       this->addButtonEvent(this->_currentButtonState.state);
       this->_currentButtonState.handled = true;
