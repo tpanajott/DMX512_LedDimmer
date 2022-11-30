@@ -147,18 +147,18 @@ LightManager *LightManager::instance;
 Button *LightManager::initButton(uint8_t buttonPin, ButtonConfig *buttonConfig)
 {
   // Find if the dmx channel to be used has already been created.
-  DMXChannel *channel = nullptr;
-  for (std::list<DMXChannel>::iterator it = this->dmxChannels.begin(); it != this->dmxChannels.end(); ++it)
+  DMXChannel *dmxChannel = nullptr;
+  for (DMXChannel &channel : LightManager::instance->dmxChannels)
   {
-    if (it->config->channel == buttonConfig->channel)
+    if (channel.config->channel == buttonConfig->channel)
     {
       LOG_INFO("DMX Channel ", LOG_BOLD, buttonConfig->channel, LOG_RESET_DECORATIONS, " already in use and found.");
-      channel = &(*it);
+      dmxChannel = &channel;
       break;
     }
   }
   // If the dmx channel to be used was not found in the list, create it.
-  if (channel == nullptr)
+  if (dmxChannel == nullptr)
   {
     LOG_ERROR("Failed to find matching DMX channel. Will not initiate button!");
   }
@@ -166,7 +166,7 @@ Button *LightManager::initButton(uint8_t buttonPin, ButtonConfig *buttonConfig)
   LOG_DEBUG("Initializing button on PIN ", LOG_BOLD, buttonPin);
   Button newBtn;
   newBtn.pin = buttonPin;
-  newBtn.dmxChannel = channel;
+  newBtn.dmxChannel = dmxChannel;
   newBtn.config = buttonConfig;
   // Mark all events handled from the start.
   newBtn.buttonEvents[0].handled = true;
@@ -216,9 +216,9 @@ void LightManager::_taskReadButtonStates(void *param)
       delay(5); // Leave 5 seconds for button to quiet down. Basic stupid debounce.
       if (LightManager::instance)
       {
-        for (std::list<Button>::iterator it = LightManager::instance->buttons.begin(); it != LightManager::instance->buttons.end(); ++it)
+        for (Button &btn : LightManager::instance->buttons)
         {
-          it->updateState();
+          btn.updateState();
         }
       }
       else
@@ -246,20 +246,20 @@ void LightManager::taskProcessButtonEvents(void *param)
     if (LightManager::instance)
     {
       bool unhandledButtonEvents = true;
-      for (std::list<Button>::iterator it = LightManager::instance->buttons.begin(); it != LightManager::instance->buttons.end(); ++it)
+      for (Button &btn : LightManager::instance->buttons)
       {
         // Do initial filtering
-        if (!it->buttonEvents[0].handled && it->getTimeDelta(0, 1) >= LMANConfig::instance->buttonPressMinTime)
+        if (!btn.buttonEvents[0].handled && btn.getTimeDelta(0, 1) >= LMANConfig::instance->buttonPressMinTime)
         {
-          if (it->buttonEvents[0].state && it->getTimeDeltaNowLastState() >= LMANConfig::instance->buttonPressMaxTime && it->dmxChannel->state)
+          if (btn.buttonEvents[0].state && btn.getTimeDeltaNowLastState() >= LMANConfig::instance->buttonPressMaxTime && btn.dmxChannel->state)
           {
             // State is high and has been for the max threshold time. Consider it a dimming event.
             // If a dimming task has been created, notify it and mark event as handled.
             if (LightManager::instance->_taskHandleDimLights)
             {
               // Reverse direction so that a release of the button and then press again reverses it.
-              it->dmxChannel->dimmingDirection = !it->dmxChannel->dimmingDirection;
-              it->buttonEvents[0].handled = true;
+              btn.dmxChannel->dimmingDirection = !btn.dmxChannel->dimmingDirection;
+              btn.buttonEvents[0].handled = true;
               xTaskNotifyGive(LightManager::instance->_taskHandleDimLights);
             }
             else
@@ -267,24 +267,24 @@ void LightManager::taskProcessButtonEvents(void *param)
               LOG_ERROR("Dimming event occuring but no task started!");
             }
           }
-          else if (!it->buttonEvents[0].state && it->buttonEvents[1].state && it->getTimeDelta(0, 1) <= LMANConfig::instance->buttonPressMaxTime)
+          else if (!btn.buttonEvents[0].state && btn.buttonEvents[1].state && btn.getTimeDelta(0, 1) <= LMANConfig::instance->buttonPressMaxTime)
           {
             // State is low, previous state was high and the time between states
             // was lower than max and higher than min. This was a toggle press.
-            if (it->dmxChannel->state)
+            if (btn.dmxChannel->state)
             {
-              LOG_DEBUG("Slow turn off triggered for channel ", LOG_BOLD, it->dmxChannel->config->channel);
-              LightManager::instance->autoDimOff(&(*it->dmxChannel));
+              LOG_DEBUG("Slow turn off triggered for channel ", LOG_BOLD, btn.dmxChannel->config->channel);
+              LightManager::instance->autoDimOff(&(*btn.dmxChannel));
             }
             else
             {
-              LOG_DEBUG("Slow turn on triggered for channel ", LOG_BOLD, it->dmxChannel->config->channel);
-              LightManager::instance->autoDimOn(&(*it->dmxChannel));
+              LOG_DEBUG("Slow turn on triggered for channel ", LOG_BOLD, btn.dmxChannel->config->channel);
+              LightManager::instance->autoDimOn(&(*btn.dmxChannel));
             }
-            it->buttonEvents[0].handled = true;
+            btn.buttonEvents[0].handled = true;
           }
 
-          if (!unhandledButtonEvents && !it->buttonEvents[0].handled)
+          if (!unhandledButtonEvents && !btn.buttonEvents[0].handled)
           {
             unhandledButtonEvents = true;
             LOG_DEBUG(unhandledButtonEvents);
@@ -316,10 +316,10 @@ void LightManager::_taskDimLights(void *param)
   for (;;)
   {
     bool hasDimmingJob = false;
-    for (std::list<Button>::iterator it = LightManager::instance->buttons.begin(); it != LightManager::instance->buttons.end(); ++it)
+    for (Button &btn : LightManager::instance->buttons)
     {
       // Latest state is high, dim the light
-      if (it->buttonEvents[0].state)
+      if (btn.buttonEvents[0].state)
       {
         // Indicate that there is still a dimming job to do.
         if (!hasDimmingJob)
@@ -327,7 +327,7 @@ void LightManager::_taskDimLights(void *param)
           hasDimmingJob = true;
         }
         // Update dim level.
-        DMXChannel *channel = it->dmxChannel;
+        DMXChannel *channel = btn.dmxChannel;
         channel->stopAutoDimming(); // Stop auto-dimming if it is currently happening
         if (channel->level != channel->config->min && channel->level != channel->config->max && millis() - channel->lastLevelChange >= channel->config->dimmingSpeed)
         {
@@ -421,28 +421,28 @@ void LightManager::_taskAutoDimLights(void *param)
   for (;;)
   {
     bool hasAutoDimmingJob = false;
-    for (std::list<DMXChannel>::iterator it = LightManager::instance->dmxChannels.begin(); it != LightManager::instance->dmxChannels.end(); ++it)
+    for (DMXChannel &channel : LightManager::instance->dmxChannels)
     {
-      if (it->isAutoDimming)
+      if (channel.isAutoDimming)
       {
-        if (it->level > it->autoDimmingTarget)
+        if (channel.level > channel.autoDimmingTarget)
         {
-          it->setLevel(it->level - 1);
+          channel.setLevel(channel.level - 1);
         }
-        else if (it->level < it->autoDimmingTarget)
+        else if (channel.level < channel.autoDimmingTarget)
         {
-          it->setLevel(it->level + 1);
+          channel.setLevel(channel.level + 1);
         }
 
-        if (it->turnOffWhenAutoDimComplete && it->autoDimmingTarget == it->level)
+        if (channel.turnOffWhenAutoDimComplete && channel.autoDimmingTarget == channel.level)
         {
-          it->setState(false);
-          it->turnOffWhenAutoDimComplete = false;
+          channel.setState(false);
+          channel.turnOffWhenAutoDimComplete = false;
           // Reset level to what it was before auto-dimming started.
-          LOG_DEBUG("Restoring previous level for DMX Channel: ", it->levelBeforeAutoDimming);
-          it->setLevel(it->levelBeforeAutoDimming);
+          LOG_DEBUG("Restoring previous level for DMX Channel: ", channel.levelBeforeAutoDimming);
+          channel.setLevel(channel.levelBeforeAutoDimming);
         }
-        else if (!hasAutoDimmingJob && it->autoDimmingTarget != it->level)
+        else if (!hasAutoDimmingJob && channel.autoDimmingTarget != channel.level)
         {
           // Make sure we continue if more work is to be done.
           hasAutoDimmingJob = true;
