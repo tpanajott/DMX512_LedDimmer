@@ -12,3 +12,5 @@ PCB/DMX_ControllerBoard_ESP32/DMX_ControllerBoard-backups
 
 *.kicad_pcb-bak
 *.sch-bak
+
+untracked_test
