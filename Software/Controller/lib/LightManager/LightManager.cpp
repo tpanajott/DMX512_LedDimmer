@@ -365,6 +365,19 @@ void LightManager::taskProcessButtonEvents(void *param)
 void LightManager::_taskDimLights(void *param)
 {
   LOG_INFO("Started _taskDimLights");
+
+  uint8_t fastestDimmingSpeed = 255;
+  for (DMXChannel &channel : LightManager::instance->dmxChannels)
+  {
+    if (channel.config->enabled)
+    {
+      if (channel.config->dimmingSpeed < fastestDimmingSpeed && channel.config->dimmingSpeed > 0)
+      {
+        fastestDimmingSpeed = channel.config->dimmingSpeed;
+      }
+    }
+  }
+
   for (;;)
   {
     bool hasDimmingJob = false;
@@ -409,7 +422,7 @@ void LightManager::_taskDimLights(void *param)
     }
     if (hasDimmingJob)
     {
-      vTaskDelay(1);
+      vTaskDelay(fastestDimmingSpeed / portTICK_PERIOD_MS);
     }
     else
     {
@@ -470,6 +483,18 @@ void LightManager::autoDimOff(DMXChannel *dmxChannel)
 void LightManager::_taskAutoDimLights(void *param)
 {
   LOG_INFO("Started _taskAutoDimLights");
+  uint8_t fastestDimmingSpeed = 255;
+  for (DMXChannel &channel : LightManager::instance->dmxChannels)
+  {
+    if (channel.config->enabled)
+    {
+      if (channel.config->autoDimmingSpeed < fastestDimmingSpeed && channel.config->autoDimmingSpeed > 0)
+      {
+        fastestDimmingSpeed = channel.config->autoDimmingSpeed;
+      }
+    }
+  }
+
   for (;;)
   {
     bool hasAutoDimmingJob = false;
@@ -503,7 +528,7 @@ void LightManager::_taskAutoDimLights(void *param)
     }
     if (hasAutoDimmingJob)
     {
-      vTaskDelay(1);
+      vTaskDelay(fastestDimmingSpeed / portTICK_PERIOD_MS);
     }
     else
     {
@@ -515,42 +540,3 @@ void LightManager::_taskAutoDimLights(void *param)
     }
   }
 }
-
-// void LightManager::taskAutoDimDMXChannel(void *param)
-// {
-//   DMXChannel *channel = (DMXChannel *)param;
-//   LOG_INFO("Started auto-dimming of DMX channel ", LOG_BOLD, channel->config->channel, LOG_RESET_DECORATIONS, " target ", LOG_BOLD, channel->autoDimmingTarget);
-//   while (channel->level != channel->autoDimmingTarget)
-//   {
-//     if (channel->level < channel->autoDimmingTarget)
-//     {
-//       channel->setLevel(channel->level + 1);
-//     }
-//     else if (channel->level > channel->autoDimmingTarget)
-//     {
-//       channel->setLevel(channel->level - 1);
-//     }
-//     else
-//     {
-//       LOG_ERROR("UNKNOWN STATE! Stopping.");
-//       LOG_INFO("REQUEST STOP! ", String(__func__));
-//       channel->stopAutoDimming();
-//     }
-//     vTaskDelay(channel->config->autoDimmingSpeed / portTICK_PERIOD_MS);
-//   }
-//   // If turn off was requested, turn off the light when dimming is complete.
-//   if (channel->turnOffWhenAutoDimComplete)
-//   {
-//     channel->setState(false);
-//     channel->turnOffWhenAutoDimComplete = false;
-//     // Reset level to what it was before auto-dimming started.
-//     channel->setLevel(channel->levelBeforeAutoDimming);
-//   }
-
-//   // Dimming is done. Delete task handle on channel and stop the current task.
-//   LOG_INFO("REQUEST STOP! ", String(__func__));
-//   channel->stopAutoDimming();
-//   // If the above failed to stop. Stop our own task
-//   LOG_ERROR("Not stopped by stopAutoDimming. Will forcefully quit!");
-//   vTaskDelete(NULL);
-// }

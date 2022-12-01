@@ -275,7 +275,7 @@ void taskWiFiMqttHandler(void *param)
         {
           WiFi.begin(config.wifi_ssid.c_str(), config.wifi_psk.c_str());
           LOG_INFO("Connecting to WiFi ", LOG_BOLD, config.wifi_ssid.c_str());
-          vTaskDelay(1000);
+          vTaskDelay(1000 / portTICK_PERIOD_MS);
           if (WiFi.isConnected())
           {
             LOG_INFO("Connected to WiFi ", LOG_BOLD, config.wifi_ssid.c_str());
@@ -308,7 +308,7 @@ void taskWiFiMqttHandler(void *param)
           LOG_INFO("Connecting to MQTT server ", LOG_BOLD, config.mqtt_server.c_str());
           // mqttClient.connect(config.wifi_hostname.c_str(), config.mqtt_username.c_str(), config.mqtt_password.c_str());
           mqttClient.connect(config.wifi_hostname.c_str(), config.mqtt_username.c_str(), config.mqtt_password.c_str(), LMANConfig::instance->channelConfigs[0].getAvailabilityTopic().c_str(), 1, 1, "offline");
-          vTaskDelay(1000);
+          vTaskDelay(1000 / portTICK_PERIOD_MS);
           if (mqttClient.connected())
           {
             LOG_INFO("Connected to MQTT server ", LOG_BOLD, config.mqtt_server.c_str());
