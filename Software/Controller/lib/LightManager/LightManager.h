@@ -65,8 +65,6 @@ class Button
 {
 public:
   ButtonConfig *config;
-  /// @brief Wether the button is enabled or not.
-  bool enabled = true;
   /// @brief The GPIO pin to read state for this button
   uint8_t pin;
   /// @brief The DMX channel used by this button
@@ -76,6 +74,9 @@ public:
   /// @brief Add a new button event. Time of the event is set to current millis()
   /// @param state The new state.
   void addButtonEvent(bool state);
+  /// @brief Check wether or not the current button read state has been determined or if more reads/check are neccesary
+  /// @return True if button state has been determined and put into the buttonEvents list
+  bool hasDeterminedState();
   /// @brief Read current state and if changed, update state list
   void updateState();
   /// @brief Get the time difference between two button events.
@@ -109,6 +110,8 @@ public:
   DMXChannel *initDMXChannel(ChannelConfig *config);
   /// @brief The instance of the LightManager started with .init();
   static LightManager *instance;
+  /// @brief Button interupt handler
+  static void IRAM_ATTR ISRForwarder();
   static void taskPollButtonState();
   /// @brief When a button event has occured, perform the needed actions.
   static void taskProcessButtonEvents(void *param);

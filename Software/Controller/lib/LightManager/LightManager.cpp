@@ -120,7 +120,7 @@ void Button::updateState()
     bool currentButtonState = !digitalRead(this->pin);
     // Check that the current state is not the same as already confirmed
     // AND that the state is not the same as the last read state.
-    if (currentButtonState != this->buttonEvents[0].state && currentButtonState != this->_currentButtonState.state)
+    if (currentButtonState != this->_currentButtonState.state)
     {
       LOG_DEBUG("(", millis(), ") ", "New state ", LOG_BOLD, currentButtonState ? "PRESSED" : "DEPRESSED", LOG_RESET_DECORATIONS, " for channel ", LOG_BOLD, this->config->channel);
       this->_currentButtonState.millis = millis();
@@ -138,6 +138,18 @@ void Button::updateState()
   else
   {
     LOG_ERROR("Trying to update button states. No need as no LightManager::instance exists!");
+  }
+}
+
+bool Button::hasDeterminedState()
+{
+  if (this->config->enabled)
+  {
+    return this->_currentButtonState.handled;
+  }
+  else
+  {
+    return true; // If the button is disabled, the state is always determined as it will never change
   }
 }
 
@@ -168,10 +180,20 @@ Button *LightManager::initButton(uint8_t buttonPin, ButtonConfig *buttonConfig)
       break;
     }
   }
-  // If the dmx channel to be used was not found in the list, create it.
+  // If the dmx channel to be used was not found in the list, log error.
   if (dmxChannel == nullptr)
   {
     LOG_ERROR("Failed to find matching DMX channel. Will not initiate button!");
+    return nullptr;
+  }
+
+  if (buttonConfig->enabled)
+  {
+    attachInterrupt(buttonPin, LightManager::ISRForwarder, CHANGE);
+  }
+  else
+  {
+    LOG_WARNING("Button on pin ", LOG_BOLD, buttonPin, LOG_RESET_DECORATIONS, " not enabled. Will not enabled interrupt!");
   }
 
   LOG_DEBUG("Initializing button on PIN ", LOG_BOLD, buttonPin);
@@ -209,6 +231,14 @@ void LightManager::init(TaskHandle_t *dmxSendTask, DMXESPSerial *dmx)
   xTaskCreatePinnedToCore(_taskAutoDimLights, "taskAutoDimLights", 5000, NULL, 1, &this->_taskHandleAutoDimLights, CONFIG_ARDUINO_RUNNING_CORE);
 }
 
+void IRAM_ATTR LightManager::ISRForwarder()
+{
+  if (LightManager::instance && LightManager::instance->_taskHandleReadButtonStates)
+  {
+    vTaskNotifyGiveFromISR(LightManager::instance->_taskHandleReadButtonStates, NULL);
+  }
+}
+
 void LightManager::_taskReadButtonStates(void *param)
 {
   LOG_INFO("Started _taskReadButtonStates");
@@ -224,22 +254,38 @@ void LightManager::_taskReadButtonStates(void *param)
   {
     loopDelay = 5;
   }
-  LOG_DEBUG("Will poll button states every ", LOG_BOLD, loopDelay, LOG_RESET_DECORATIONS, " ms");
+  LOG_DEBUG("Will poll button states every ", LOG_BOLD, loopDelay, LOG_RESET_DECORATIONS, " ms until determined state is set");
 
   for (;;)
   {
-    vTaskDelay(loopDelay / portTICK_PERIOD_MS);
-    if (LightManager::instance)
+    if (ulTaskNotifyTake(pdTRUE, portMAX_DELAY))
     {
-      for (Button &btn : LightManager::instance->buttons)
+      LOG_TRACE("_taskReadButtonStates got notification.");
+      if (LightManager::instance)
       {
-        btn.updateState();
+        bool allButtonsHasDetminedState = false; // Keep looping over buttons and checking states until a determined state has been reached.
+        while (!allButtonsHasDetminedState)
+        {
+          // Wait for next time to check
+          vTaskDelay(loopDelay / portTICK_PERIOD_MS);
+          allButtonsHasDetminedState = true; // Reset check. Assume all buttons have a determined state and only set to false
+                                             // if a button is found to have an undetermined state.
+          for (Button &btn : LightManager::instance->buttons)
+          {
+            btn.updateState();
+            if (!btn.hasDeterminedState())
+            {
+              LOG_DEBUG("Button on PIN ", btn.pin, " has undetermined state, will check again in ", loopDelay, " ms");
+              allButtonsHasDetminedState = false;
+            }
+          }
+        }
+        LOG_INFO("All buttons have reached a determined state, will wait for notification.");
       }
     }
     else
     {
-      LOG_ERROR(
-          "Trying to read button states event though no LightManager::instance is set!");
+      LOG_ERROR("Trying to read button states event though no LightManager::instance is set!");
     }
   }
 }
