@@ -153,7 +153,13 @@ void WebManager::handleIndexDataEvent(AsyncWebSocket *server, AsyncWebSocketClie
                     {
                         if (it->config->channel == channel)
                         {
-                            LOG_DEBUG("Found match!");
+                            if (!it->config->enabled)
+                            {
+                                LOG_ERROR("Found matching disabled channel. Will break loop!");
+                                break;
+                            }
+
+                            LOG_DEBUG("Found matching channel. Processing command!");
                             if (it->state && dimmingTarget == 0)
                             {
                                 LightManager::instance->autoDimOff(&(*it));
