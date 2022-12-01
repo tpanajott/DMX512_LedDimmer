@@ -351,13 +351,13 @@ void LightManager::taskProcessButtonEvents(void *param)
       }
       else
       {
-        vTaskDelay(5);
+        vTaskDelay(1 / portTICK_PERIOD_MS);
       }
     }
     else
     {
       LOG_ERROR("No LightManager::instance available!");
-      vTaskDelay(5);
+      vTaskDelay(100 / portTICK_PERIOD_MS);
     }
   }
 }
