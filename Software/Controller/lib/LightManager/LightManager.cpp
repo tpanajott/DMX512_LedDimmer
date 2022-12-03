@@ -118,10 +118,19 @@ void Button::updateState()
   {
     // Invert read state as there is a PULLUP on the line.
     bool currentButtonState = !digitalRead(this->pin);
-    // Check that the current state is not the same as already confirmed
-    // AND that the state is not the same as the last read state.
-    if (currentButtonState != this->_currentButtonState.state)
+    if (!currentButtonState && currentButtonState != this->buttonEvents[0].state)
     {
+      LOG_DEBUG("(", millis(), ") ", "New state DEPRESSED from confirmed PRESSED. Skipping debounce checking for channel ", LOG_BOLD, this->config->channel);
+      // The state went to LOW when it was previously HIGH, the button was released.
+      this->_currentButtonState.millis = millis();
+      this->_currentButtonState.state = currentButtonState;
+      this->_currentButtonState.handled = true;
+      this->addButtonEvent(currentButtonState);
+    }
+    else if (currentButtonState && currentButtonState != this->_currentButtonState.state)
+    {
+      // Check that the current state is not the same as already confirmed
+      // AND that the state is not the same as the last read state.
       LOG_DEBUG("(", millis(), ") ", "New state ", LOG_BOLD, currentButtonState ? "PRESSED" : "DEPRESSED", LOG_RESET_DECORATIONS, " for channel ", LOG_BOLD, this->config->channel);
       this->_currentButtonState.millis = millis();
       this->_currentButtonState.state = currentButtonState;
