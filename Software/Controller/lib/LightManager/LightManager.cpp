@@ -120,8 +120,8 @@ void Button::updateState()
     bool currentButtonState = !digitalRead(this->pin);
     if (!currentButtonState && currentButtonState != this->buttonEvents[0].state)
     {
-      LOG_DEBUG("(", millis(), ") ", "New state DEPRESSED from confirmed PRESSED. Skipping debounce checking for channel ", LOG_BOLD, this->config->channel);
       // The state went to LOW when it was previously HIGH, the button was released.
+      LOG_DEBUG("(", millis(), ") ", "New state DEPRESSED from confirmed PRESSED. Skipping debounce checking for channel ", LOG_BOLD, this->config->channel);
       this->_currentButtonState.millis = millis();
       this->_currentButtonState.state = currentButtonState;
       this->_currentButtonState.handled = true;
@@ -138,8 +138,8 @@ void Button::updateState()
     }
     else if (!this->_currentButtonState.handled && currentButtonState == this->_currentButtonState.state && millis() - this->_currentButtonState.millis >= LMANConfig::instance->buttonPressMinTime)
     {
+      // Current state is not handled and it is confirmed as a read state and has been the same for button min press time
       LOG_DEBUG("(", millis(), ") ", "New state ", LOG_BOLD, currentButtonState ? "PRESSED" : "DEPRESSED", LOG_RESET_DECORATIONS, " confirmed for channel ", LOG_BOLD, this->config->channel);
-      // Current state is not handled and it is confirmed as a read state has been the same for button min press time
       this->addButtonEvent(this->_currentButtonState.state);
       this->_currentButtonState.handled = true;
     }

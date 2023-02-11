@@ -84,7 +84,7 @@ public:
   /// @param secondEvent The index of the second event.
   /// @return The time difference between the two events in ms.
   unsigned long getTimeDelta(uint8_t firstEvent, uint8_t secondEvent);
-  /// @brief Get the time difference between lats event and now.
+  /// @brief Get the time difference between last event and now.
   /// @return The time in ms.
   unsigned long getTimeDeltaNowLastState();
 
