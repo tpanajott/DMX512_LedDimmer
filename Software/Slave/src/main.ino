@@ -16,9 +16,9 @@
 #define CHANNEL_PIN_B3 8
 #define CHANNEL_PIN_B4 9
 
-
 int dimLevel = 0;
 int currentChannel = 0;
+float pwm_multiplication_val;
 unsigned long lastCurrentChannelRead = 0;
 unsigned long lastLightDimmingEvent = 0;
 
@@ -29,7 +29,8 @@ unsigned long lastLightDimmingEvent = 0;
 // const unsigned int TOP = 0x1FFF; // 13-bit resolution.  1953 Hz PWM
 // const unsigned int TOP = 0x0FFF; // 12-bit resolution.  3906 Hz PWM
 // const unsigned int TOP = 0x07FF; // 11-bit resolution.  7812 Hz PWM
-const unsigned int TOP = 0x03FF; // 10-bit resolution. 15624 Hz PWM
+// const unsigned int TOP = 0x03FF; // 10-bit resolution. 15624 Hz PWM
+const unsigned int TOP = 0x01FF; // 9-bit resolution. 31248 Hz PWM
 
 void PWM16Begin()
 {
@@ -49,7 +50,7 @@ void PWM16Begin()
 
   // Set to Timer/Counter1 to Waveform Generation Mode 14: Fast PWM with TOP set by ICR1
   TCCR1A |= (1 << WGM11);
-  TCCR1B |= (1 << WGM13) | (1 << WGM12) ;
+  TCCR1B |= (1 << WGM13) | (1 << WGM12);
 }
 
 
@@ -118,6 +119,8 @@ void setup() {
   pinMode(CHANNEL_PIN_B4, INPUT_PULLUP);
   readCurrentChannelSwitches();
 
+  pwm_multiplication_val = sqrt(TOP) / 255;
+
   // Start PWM
   PWM16B(0);
   PWM16Begin();
@@ -139,7 +142,7 @@ void loop() {
     if (lastPacket < DMX_TIMEOUT_MS) {
       // Convert sent value with a curve to the high value corresponding to the bit-mode of the PWM
       //dimLevel = round(pow((DMXSerial.read(currentChannel) * 0.25), 2));  // Convert to 12-bit
-      dimLevel = round(pow((DMXSerial.read(currentChannel) * 0.125), 2));  // Convert to 10-bit
+      dimLevel = round(pow((DMXSerial.read(currentChannel) * pwm_multiplication_val), 2));  // Convert to 10-bit
     } else if (dimLevel > 0) {
       if(millis() - lastLightDimmingEvent > 100) {
         dimLevel--;
@@ -157,17 +160,24 @@ void loop() {
     // Blink the status LED to show that it is running (this can be disabled by not bridging the jumper)
     digitalWrite(STATUS_PIN, (millis() / 1000) % 2 == 0 ? HIGH : LOW);
   } else {
-    // Dim down the lights as not channel is configured.
-    if(millis() - lastLightDimmingEvent > 10 && dimLevel > 0) {
-      dimLevel--;
-      lastLightDimmingEvent = millis();
-      PWM16B(dimLevel);
-    }
-
     // Show an error as no channel has been set.
     digitalWrite(STATUS_PIN, HIGH);
 
-    // Blink RS485-error led fast to show that no channel has been set.
-    digitalWrite(RS485_ERROR_PIN, (millis() / 100) % 2 == 0 ? HIGH : LOW);
+    // Dim light up and down until a channel is selected.
+    for(dimLevel = 0; dimLevel < TOP && currentChannel == 0; dimLevel++) {
+      readCurrentChannelSwitches();
+      PWM16B(dimLevel);
+      // Blink RS485-error led fast to show that no channel has been set.
+      digitalWrite(RS485_ERROR_PIN, (millis() / 100) % 2 == 0 ? HIGH : LOW);
+      delay(20);
+    }
+
+    for(dimLevel = TOP; dimLevel > 0 && currentChannel == 0; dimLevel--) {
+      readCurrentChannelSwitches();
+      PWM16B(dimLevel);
+      // Blink RS485-error led fast to show that no channel has been set.
+      digitalWrite(RS485_ERROR_PIN, (millis() / 100) % 2 == 0 ? HIGH : LOW);
+      delay(20);
+    }
   }
 }
